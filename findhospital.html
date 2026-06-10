@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Hospitals — MedVyavastha</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- ✅ Firebase compat SDK — same version as your other pages -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+<!-- ══════════════════════════════════════════════════
+     🔑 STEP 1 — PASTE YOUR FIREBASE CONFIG HERE
+     Firebase Console → Project Settings → SDK setup
+══════════════════════════════════════════════════ -->
+<script>
+  const firebaseConfig = {
+  apiKey: "AIzaSyCs1JAdGs_89Xx5TjxbXvXrWmAY95gkGQA",
+  authDomain: "medvyavastha-816b7.firebaseapp.com",
+  projectId: "medvyavastha-816b7",
+  storageBucket: "medvyavastha-816b7.firebasestorage.app",
+  messagingSenderId: "938418248423",
+  appId: "1:938418248423:web:c3df194e01d6d9d788e042"
+};
+  firebase.initializeApp(firebaseConfig);
+  const db   = firebase.firestore();
+  const auth = firebase.auth();
+</script>
+
+<style>
+:root {
+  --blue-900: #0a1628; --blue-800: #0f2044; --blue-700: #1a3a6b;
+  --blue-600: #1e4d8c; --blue-500: #2563eb; --blue-400: #3b82f6;
+  --blue-300: #60a5fa; --blue-200: #bfdbfe; --blue-100: #dbeafe;
+  --blue-50:  #eff6ff; --white: #ffffff;
+  --gray-50:  #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+  --gray-400: #94a3b8; --gray-600: #475569; --gray-700: #334155;
+  --gray-800: #1e293b;
+  --green:  #10b981; --orange: #f59e0b; --red: #ef4444;
+  --cyan:   #06b6d4; --purple: #8b5cf6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'DM Sans',sans-serif; background:var(--white); color:var(--gray-800); overflow-x:hidden; }
+
+/* ── NAV ── */
+nav {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  background:rgba(255,255,255,0.93); backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--blue-100);
+  padding:0 2rem; height:64px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.nav-logo { display:flex; align-items:center; gap:10px; font-family:'Sora',sans-serif; font-weight:700; font-size:1.2rem; color:var(--blue-700); text-decoration:none; }
+.nav-logo-icon { width:36px; height:36px; background:var(--blue-500); border-radius:10px; display:flex; align-items:center; justify-content:center; }
+.nav-logo-icon svg { width:20px; height:20px; fill:white; }
+.nav-links { display:flex; gap:2rem; align-items:center; }
+.nav-links a { text-decoration:none; color:var(--gray-600); font-size:0.9rem; font-weight:500; transition:color 0.2s; }
+.nav-links a:hover, .nav-links a.active { color:var(--blue-500); }
+.nav-cta { display:flex; gap:10px; }
+.btn-outline { padding:8px 18px; border-radius:8px; border:1.5px solid var(--blue-400); color:var(--blue-500); background:transparent; font-size:0.875rem; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; text-decoration:none; display:inline-flex; align-items:center; }
+.btn-outline:hover { background:var(--blue-50); }
+.btn-primary-nav { padding:8px 18px; border-radius:8px; border:none; background:var(--blue-500); color:white; font-size:0.875rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; text-decoration:none; display:inline-flex; align-items:center; }
+.btn-primary-nav:hover { background:var(--blue-600); transform:translateY(-1px); }
+
+/* ── PAGE HERO ── */
+.page-hero {
+  background:linear-gradient(135deg,var(--blue-900) 0%,var(--blue-700) 55%,var(--blue-600) 100%);
+  padding:125px 2rem 56px; position:relative; overflow:hidden; text-align:center;
+}
+.page-hero::before { content:''; position:absolute; top:-150px; right:-150px; width:500px; height:500px; border-radius:50%; background:radial-gradient(circle,rgba(59,130,246,0.2) 0%,transparent 70%); pointer-events:none; }
+.page-hero::after  { content:''; position:absolute; bottom:-100px; left:-100px; width:400px; height:400px; border-radius:50%; background:radial-gradient(circle,rgba(6,182,212,0.12) 0%,transparent 70%); pointer-events:none; }
+.page-hero-badge { display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:var(--blue-200); font-size:0.76rem; font-weight:500; padding:5px 14px; border-radius:100px; margin-bottom:1.1rem; letter-spacing:0.06em; text-transform:uppercase; animation:fadeUp 0.5s ease both; }
+.page-hero h1 { font-family:'Sora',sans-serif; font-size:clamp(2rem,4.5vw,3.2rem); font-weight:800; color:white; line-height:1.15; max-width:700px; margin:0 auto 1rem; animation:fadeUp 0.5s 0.1s ease both; }
+.page-hero h1 span { color:var(--blue-300); }
+.page-hero p { color:rgba(255,255,255,0.68); font-size:1rem; max-width:520px; margin:0 auto; line-height:1.7; animation:fadeUp 0.5s 0.2s ease both; }
+
+/* ── LIVE UPDATE BADGE ── */
+.live-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); color:#a7f3d0; font-size:0.72rem; font-weight:600; padding:4px 12px; border-radius:100px; margin-top:14px; animation:fadeUp 0.5s 0.3s ease both; }
+.live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 1.5s infinite; }
+
+/* ── MAIN WRAPPER ── */
+.main-wrapper { background:var(--gray-50); min-height:60vh; padding:0 0 80px; }
+.container { max-width:1140px; margin:0 auto; padding:0 2rem; }
+
+/* ── SEARCH ENGINE PANEL ── */
+.search-engine { background:white; border-radius:0 0 24px 24px; box-shadow:0 8px 40px rgba(10,22,40,0.1); padding:36px 40px 32px; position:relative; z-index:10; }
+.search-tabs { display:flex; border-bottom:2px solid var(--gray-100); margin-bottom:28px; }
+.search-tab { flex:1; padding:12px 10px; text-align:center; cursor:pointer; font-weight:600; font-size:0.9rem; color:var(--gray-400); border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:7px; }
+.search-tab.active { color:var(--blue-500); border-color:var(--blue-500); }
+.tab-panel { display:none; animation:fadeUp 0.3s ease both; }
+.tab-panel.active { display:block; }
+
+/* Location detect box */
+.location-detect-box { background:linear-gradient(135deg,var(--blue-50),#f0f9ff); border:1.5px solid var(--blue-200); border-radius:14px; padding:20px 24px; display:flex; align-items:center; gap:16px; margin-bottom:20px; cursor:pointer; transition:all 0.2s; }
+.location-detect-box:hover { border-color:var(--blue-400); box-shadow:0 4px 20px rgba(37,99,235,0.1); }
+.location-detect-icon { width:48px; height:48px; background:var(--blue-500); border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.location-detect-icon svg { width:24px; height:24px; stroke:white; }
+.location-detect-text h4 { font-weight:600; font-size:0.95rem; color:var(--blue-900); margin-bottom:2px; }
+.location-detect-text p { font-size:0.8rem; color:var(--gray-600); }
+.location-detect-arrow { margin-left:auto; color:var(--blue-400); font-size:1.2rem; }
+.or-divider { display:flex; align-items:center; gap:14px; margin:16px 0; color:var(--gray-400); font-size:0.82rem; font-weight:500; }
+.or-divider::before,.or-divider::after { content:''; flex:1; height:1px; background:var(--gray-200); }
+.input-row { display:grid; grid-template-columns:1fr auto; gap:12px; align-items:end; }
+.input-group { display:flex; flex-direction:column; gap:6px; }
+.input-label { font-size:0.8rem; font-weight:600; color:var(--gray-600); }
+.input-field { padding:11px 14px; border:1.5px solid var(--gray-200); border-radius:10px; font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--gray-800); outline:none; transition:border-color 0.2s; }
+.input-field:focus { border-color:var(--blue-400); }
+.input-field::placeholder { color:var(--gray-400); }
+.search-btn-big { padding:12px 28px; border-radius:10px; border:none; background:var(--blue-500); color:white; font-size:0.9rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.search-btn-big:hover { background:var(--blue-600); transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,0.3); }
+
+/* Type selector */
+.type-selector-label { font-size:0.82rem; font-weight:600; color:var(--gray-600); margin-bottom:10px; }
+.type-cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:4px; }
+.type-card { border:2px solid var(--gray-200); border-radius:14px; padding:18px 20px; cursor:pointer; transition:all 0.22s; display:flex; align-items:flex-start; gap:14px; }
+.type-card:hover { border-color:var(--blue-300); background:var(--blue-50); }
+.type-card.selected { border-color:var(--blue-500); background:var(--blue-50); box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+.type-card-icon { font-size:2rem; flex-shrink:0; line-height:1; }
+.type-card-body h4 { font-family:'Sora',sans-serif; font-size:0.95rem; font-weight:700; color:var(--blue-900); margin-bottom:4px; }
+.type-card-body p { font-size:0.78rem; color:var(--gray-600); line-height:1.5; }
+.type-card-badge { display:inline-block; background:var(--green); color:white; font-size:0.65rem; font-weight:600; padding:2px 8px; border-radius:100px; margin-top:6px; }
+.type-card-badge.orange { background:var(--orange); }
+
+/* Sub-options */
+.sub-options-panel { display:none; animation:fadeUp 0.3s ease; }
+.sub-options-panel.visible { display:block; }
+.sub-options-title { font-size:0.82rem; font-weight:600; color:var(--gray-600); margin-bottom:12px; margin-top:22px; display:flex; align-items:center; gap:8px; }
+.sub-options-title::after { content:''; flex:1; height:1px; background:var(--gray-200); }
+.speciality-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px; }
+.speciality-chip { border:1.5px solid var(--gray-200); border-radius:10px; padding:12px 14px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:9px; font-size:0.82rem; font-weight:500; color:var(--gray-700); background:white; }
+.speciality-chip:hover { border-color:var(--blue-300); background:var(--blue-50); color:var(--blue-700); }
+.speciality-chip.selected { border-color:var(--blue-500); background:var(--blue-500); color:white; }
+.chip-icon { font-size:1.1rem; flex-shrink:0; }
+
+/* Name tab */
+.name-search-bar { display:flex; align-items:center; gap:12px; background:var(--gray-50); border:1.5px solid var(--gray-200); border-radius:12px; padding:8px 8px 8px 18px; transition:border-color 0.2s; margin-bottom:16px; }
+.name-search-bar:focus-within { border-color:var(--blue-400); background:white; }
+.name-search-bar input { flex:1; border:none; outline:none; font-family:'DM Sans',sans-serif; font-size:0.95rem; color:var(--gray-800); background:transparent; }
+
+/* ── RESULTS ── */
+.results-section { padding-top:40px; }
+.results-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+.results-title { font-family:'Sora',sans-serif; font-size:1.3rem; font-weight:700; color:var(--blue-900); }
+.results-count { font-size:0.85rem; color:var(--gray-600); margin-top:2px; }
+
+/* Sort & filter row */
+.filter-sort-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.sort-label { font-size:0.8rem; color:var(--gray-600); font-weight:500; }
+.sort-select { padding:7px 12px; border:1.5px solid var(--gray-200); border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.82rem; color:var(--gray-800); outline:none; cursor:pointer; background:white; }
+.filter-chip-btn { padding:6px 14px; border-radius:100px; border:1.5px solid var(--gray-200); background:white; color:var(--gray-600); font-size:0.78rem; font-weight:500; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
+.filter-chip-btn.active, .filter-chip-btn:hover { background:var(--blue-500); color:white; border-color:var(--blue-500); }
+
+/* ── HOSPITAL CARDS ── */
+.hospitals-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:20px; }
+.hospital-card { background:white; border-radius:16px; border:1px solid var(--gray-200); overflow:hidden; transition:all 0.25s; cursor:pointer; }
+.hospital-card:hover { transform:translateY(-4px); box-shadow:0 16px 48px rgba(37,99,235,0.12); border-color:var(--blue-300); }
+.card-header { background:linear-gradient(135deg,var(--blue-700),var(--blue-500)); padding:20px; position:relative; overflow:hidden; }
+.card-header.gov { background:linear-gradient(135deg,#065f46,#10b981); }
+.card-header.private { background:linear-gradient(135deg,#1e1b4b,var(--purple)); }
+.card-header::after { content:'+'; position:absolute; right:-10px; top:-20px; font-size:8rem; font-weight:800; color:rgba(255,255,255,0.06); font-family:'Sora',sans-serif; line-height:1; }
+.card-dist { background:rgba(255,255,255,0.18); border-radius:100px; padding:4px 10px; font-size:0.72rem; color:white; font-weight:500; display:inline-flex; align-items:center; gap:4px; margin-bottom:8px; }
+.card-name { font-family:'Sora',sans-serif; font-size:1.05rem; font-weight:700; color:white; line-height:1.3; }
+.card-type-badge { display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,0.15); border-radius:6px; padding:3px 9px; font-size:0.7rem; color:rgba(255,255,255,0.9); font-weight:600; margin-top:6px; }
+.card-body { padding:16px 20px; }
+.card-rating { display:flex; align-items:center; gap:6px; font-size:0.82rem; color:var(--gray-600); margin-bottom:12px; }
+.stars { color:#f59e0b; letter-spacing:1px; font-size:0.85rem; }
+.resources-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+.resource-item { background:var(--blue-50); border-radius:10px; padding:10px 8px; text-align:center; }
+.resource-num { font-family:'Sora',sans-serif; font-size:1.2rem; font-weight:700; color:var(--blue-600); line-height:1; }
+.resource-num.low { color:var(--red); }
+.resource-num.mid { color:var(--orange); }
+.resource-label { font-size:0.66rem; color:var(--gray-600); margin-top:3px; }
+.card-availability { display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; font-size:0.8rem; font-weight:500; margin-bottom:12px; }
+.avail-open    { background:#d1fae5; color:#065f46; }
+.avail-limited { background:#fef3c7; color:#92400e; }
+.avail-full    { background:#fee2e2; color:#991b1b; }
+.avail-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; animation:pulse 2s infinite; }
+.avail-open    .avail-dot { background:var(--green); }
+.avail-limited .avail-dot { background:var(--orange); }
+.avail-full    .avail-dot { background:var(--red); }
+.card-action { width:100%; padding:10px; border-radius:8px; border:none; background:var(--blue-500); color:white; font-weight:600; font-size:0.82rem; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.2s; }
+.card-action:hover { background:var(--blue-600); }
+
+/* No results */
+.no-results { text-align:center; padding:60px 20px; grid-column:1/-1; }
+.no-results-icon { font-size:3.5rem; margin-bottom:14px; }
+.no-results h3 { font-family:'Sora',sans-serif; font-size:1.2rem; font-weight:700; color:var(--blue-900); margin-bottom:8px; }
+.no-results p { color:var(--gray-600); font-size:0.9rem; }
+
+/* Loading skeleton */
+.skeleton-card { background:white; border-radius:16px; border:1px solid var(--gray-200); overflow:hidden; animation:shimmer 1.5s infinite; }
+.skeleton-header { height:90px; background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 50%,var(--gray-100) 75%); background-size:200% 100%; }
+.skeleton-body { padding:16px 20px; }
+.skeleton-line { height:12px; border-radius:6px; background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 50%,var(--gray-100) 75%); background-size:200% 100%; margin-bottom:10px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── MODAL ── */
+.modal-overlay { position:fixed; inset:0; background:rgba(10,22,40,0.75); backdrop-filter:blur(6px); z-index:200; display:none; align-items:center; justify-content:center; padding:1rem; }
+.modal-overlay.open { display:flex; animation:fadeIn 0.2s ease; }
+.modal { background:white; border-radius:20px; width:100%; max-width:600px; max-height:92vh; overflow-y:auto; animation:slideUp 0.3s ease; }
+
+/* Modal header */
+.modal-header { background:linear-gradient(135deg,var(--blue-700),var(--blue-500)); padding:26px 30px 22px; border-radius:20px 20px 0 0; position:relative; }
+.modal-header.gov { background:linear-gradient(135deg,#065f46,#10b981); }
+.modal-header.private { background:linear-gradient(135deg,#1e1b4b,var(--purple)); }
+.modal-close { position:absolute; top:18px; right:18px; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.2); border:none; color:white; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.2s; }
+.modal-close:hover { background:rgba(255,255,255,0.35); }
+.modal-hospital-name { font-family:'Sora',sans-serif; font-size:1.35rem; font-weight:700; color:white; margin-right:40px; }
+.modal-hospital-sub { color:rgba(255,255,255,0.72); font-size:0.83rem; margin-top:5px; }
+
+/* Modal status bar */
+.modal-status-bar { display:flex; align-items:center; gap:8px; padding:11px 20px; border-bottom:1px solid var(--gray-100); }
+.modal-status-dot { width:8px; height:8px; border-radius:50%; animation:pulse 1.5s infinite; }
+.modal-status-text { font-size:0.85rem; font-weight:600; }
+
+/* Modal body */
+.modal-body { padding:22px 28px 28px; }
+.modal-section-title { font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.09em; color:var(--gray-400); margin-bottom:14px; margin-top:22px; }
+.modal-section-title:first-child { margin-top:0; }
+
+/* Modal resources grid */
+.modal-resources { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+@media(max-width:500px){ .modal-resources{ grid-template-columns:repeat(2,1fr); } }
+.modal-resource { background:var(--blue-50); border-radius:12px; padding:14px 10px; text-align:center; border:1px solid var(--blue-100); }
+.modal-resource-icon { font-size:1.3rem; margin-bottom:6px; }
+.modal-resource-val { font-family:'Sora',sans-serif; font-size:1.4rem; font-weight:700; color:var(--blue-700); line-height:1; }
+.modal-resource-val.low { color:var(--red); }
+.modal-resource-val.mid { color:var(--orange); }
+.modal-resource-lbl { font-size:0.68rem; color:var(--gray-600); margin-top:3px; }
+
+/* Progress bars inside modal */
+.modal-bar-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.modal-bar-label { font-size:0.76rem; color:var(--gray-600); width:100px; flex-shrink:0; }
+.modal-bar-track { flex:1; height:6px; background:var(--gray-100); border-radius:100px; overflow:hidden; }
+.modal-bar-fill { height:100%; border-radius:100px; transition:width 0.5s ease; }
+.modal-bar-pct { font-size:0.72rem; color:var(--gray-400); width:32px; text-align:right; }
+
+/* Modal contact */
+.modal-contact { display:flex; flex-direction:column; gap:10px; }
+.contact-row { display:flex; align-items:flex-start; gap:12px; padding:12px; background:var(--gray-50); border-radius:10px; }
+.contact-icon { width:36px; height:36px; background:var(--blue-100); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1rem; }
+.contact-label { font-size:0.7rem; color:var(--gray-400); font-weight:600; text-transform:uppercase; }
+.contact-val { font-size:0.88rem; font-weight:500; color:var(--gray-800); margin-top:2px; }
+
+/* Modal CTA */
+.modal-cta { display:flex; gap:10px; margin-top:22px; }
+.modal-cta button { flex:1; padding:12px; border-radius:10px; font-family:'DM Sans',sans-serif; font-weight:600; font-size:0.875rem; cursor:pointer; transition:all 0.2s; }
+.cta-primary { background:var(--blue-500); color:white; border:none; }
+.cta-primary:hover { background:var(--blue-600); transform:translateY(-1px); }
+.cta-outline { background:transparent; color:var(--blue-500); border:1.5px solid var(--blue-300); }
+.cta-outline:hover { background:var(--blue-50); }
+
+/* ── TOAST ── */
+.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--blue-900); color:white; padding:12px 22px; border-radius:100px; font-size:0.85rem; font-weight:500; z-index:999; transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1); pointer-events:none; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ── SPINNER ── */
+.loc-spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(37,99,235,0.3); border-top-color:var(--blue-500); border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:6px; }
+
+/* ── FOOTER ── */
+footer { background:var(--blue-900); color:rgba(255,255,255,0.6); padding:50px 2rem 30px; }
+.footer-grid { max-width:1100px; margin:0 auto; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:40px; margin-bottom:40px; }
+.footer-brand { display:flex; flex-direction:column; gap:12px; }
+.footer-logo { display:flex; align-items:center; gap:10px; font-family:'Sora',sans-serif; font-size:1.1rem; font-weight:700; color:white; }
+.footer-logo-icon { width:34px; height:34px; background:var(--blue-500); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+.footer-desc { font-size:0.83rem; line-height:1.7; max-width:280px; }
+.footer-col h5 { color:white; font-size:0.85rem; font-weight:600; margin-bottom:14px; }
+.footer-col a { display:block; color:rgba(255,255,255,0.5); font-size:0.82rem; text-decoration:none; margin-bottom:8px; transition:color 0.2s; }
+.footer-col a:hover { color:white; }
+.footer-bottom { max-width:1100px; margin:0 auto; padding-top:24px; border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; font-size:0.8rem; }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp  { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:none} }
+@keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+@keyframes slideUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:none} }
+@keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes spin    { to{transform:rotate(360deg)} }
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .nav-links{display:none;}
+  .type-cards{grid-template-columns:1fr;}
+  .input-row{grid-template-columns:1fr;}
+  .footer-grid{grid-template-columns:1fr 1fr;}
+  .search-engine{padding:24px 20px 20px;}
+  .modal-resources{grid-template-columns:repeat(2,1fr);}
+  .speciality-grid{grid-template-columns:repeat(2,1fr);}
+  .modal-body{padding:18px 20px 24px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <a class="nav-logo" href="college1_new.html">
+    <div class="nav-logo-icon">
+      <svg viewBox="0 0 24 24"><rect x="11" y="4" width="2" height="5" rx="1"/><rect x="11" y="15" width="2" height="5" rx="1"/><rect x="4" y="11" width="5" height="2" rx="1"/><rect x="15" y="11" width="5" height="2" rx="1"/></svg>
+    </div>
+    MedVyavastha
+  </a>
+  <div class="nav-links">
+    <a href="college1_new.html">Home</a>
+    <a href="about.html">About Us</a>
+    <a href="findhospital.html" class="active">Find Hospitals</a>
+    <a href="contact us.html">Contact Us</a>
+  </div>
+  <div class="nav-cta">
+    <a href="hospitallogin.html"><button class="btn-outline">Log In</button></a>
+    <a href="register.html"><button class="btn-primary-nav">Register Hospital</button></a>
+  </div>
+</nav>
+
+<!-- ── PAGE HERO ── -->
+<div class="page-hero">
+  <div class="page-hero-badge">🏥 Hospital Finder</div>
+  <h1>Find the <span>Right Hospital</span><br>Near You</h1>
+  <p>Search by location or name. Filter by govt or private. Every number is updated <strong>live</strong> by hospital staff.</p>
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    Live data from Firebase — updates instantly
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT ── -->
+<div class="main-wrapper">
+  <div class="container">
+
+    <!-- ── SEARCH ENGINE ── -->
+    <div class="search-engine">
+      <div class="search-tabs">
+        <div class="search-tab active" id="tab-location" onclick="switchTab('location')">
+          <span>📍</span> Search by Location
+        </div>
+        <div class="search-tab" id="tab-name" onclick="switchTab('name')">
+          <span>🔍</span> Search by Name
+        </div>
+      </div>
+
+      <!-- ── LOCATION TAB ── -->
+      <div class="tab-panel active" id="panel-location">
+        <div class="location-detect-box" onclick="detectLocation()" id="detectBox">
+          <div class="location-detect-icon">
+            <svg fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          </div>
+          <div class="location-detect-text">
+            <h4 id="detectTitle">📍 Detect My Current Location</h4>
+            <p id="detectSub">Allow access to find hospitals nearest to you automatically</p>
+          </div>
+          <div class="location-detect-arrow">→</div>
+        </div>
+
+        <div class="or-divider">or enter manually</div>
+
+        <div class="input-row">
+          <div class="input-group">
+            <label class="input-label">City / District</label>
+            <input class="input-field" id="cityInput" type="text" placeholder="e.g. Patna, Ranchi, Delhi…" onkeydown="if(event.key==='Enter') runLocationSearch()">
+          </div>
+          <button class="search-btn-big" onclick="runLocationSearch()">
+            <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Search
+          </button>
+        </div>
+
+        <!-- Hospital type filter -->
+        <div style="margin-top:24px;">
+          <div class="type-selector-label">Filter by Hospital Type (optional)</div>
+          <div class="type-cards">
+            <div class="type-card" id="type-govt" onclick="selectType('govt')">
+              <div class="type-card-icon">🏛️</div>
+              <div class="type-card-body">
+                <h4>Government Hospital</h4>
+                <p>Full medical coverage under CGHS, PMJAY (Ayushman Bharat) & state schemes. Free or subsidised care.</p>
+                <span class="type-card-badge">Full Coverage</span>
+              </div>
+            </div>
+            <div class="type-card" id="type-private" onclick="selectType('private')">
+              <div class="type-card-icon">🏥</div>
+              <div class="type-card-body">
+                <h4>Private Hospital</h4>
+                <p>Specialised care, advanced technology. Coverage varies — some accept insurance & Ayushman Bharat.</p>
+                <span class="type-card-badge orange">Varies by Hospital</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── NAME TAB ── -->
+      <div class="tab-panel" id="panel-name">
+        <div class="name-search-bar">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="nameInput" placeholder="Type hospital name or city…" oninput="nameSearch()">
+        </div>
+        <div style="margin-top:16px;">
+          <div class="type-selector-label">Filter by Type</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <button class="speciality-chip selected" id="nameChip-all"     onclick="setNameFilter('all',this)">   <span class="chip-icon">🏥</span> All Hospitals</button>
+            <button class="speciality-chip"           id="nameChip-govt"   onclick="setNameFilter('govt',this)">  <span class="chip-icon">🏛️</span> Government</button>
+            <button class="speciality-chip"           id="nameChip-private" onclick="setNameFilter('private',this)"><span class="chip-icon">🏢</span> Private</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- end search-engine -->
+
+    <!-- ── RESULTS ── -->
+    <div class="results-section" id="resultsSection" style="display:none;">
+      <div class="results-header">
+        <div>
+          <div class="results-title" id="resultsTitle">Hospitals</div>
+          <div class="results-count" id="resultsCount">Showing 0 results</div>
+        </div>
+        <div class="filter-sort-row">
+          <span class="sort-label">Sort:</span>
+          <select class="sort-select" id="sortSelect" onchange="applySortAndFilter()">
+            <option value="name">Name (A–Z)</option>
+            <option value="beds">Beds Available ↓</option>
+            <option value="icu">ICU Available ↓</option>
+            <option value="status">Status (Open first)</option>
+          </select>
+          <button class="filter-chip-btn active" id="chipAll"     onclick="setChipFilter('all',this)">All</button>
+          <button class="filter-chip-btn"         id="chipGovt"   onclick="setChipFilter('govt',this)">Government</button>
+          <button class="filter-chip-btn"         id="chipPrivate" onclick="setChipFilter('private',this)">Private</button>
+          <button class="filter-chip-btn"         id="chipOpen"   onclick="setChipFilter('open',this)">Emergency Open</button>
+          <button class="filter-chip-btn"         id="chipBeds"   onclick="setChipFilter('beds',this)">Beds Available</button>
+          <button class="filter-chip-btn"         id="chipIcu"    onclick="setChipFilter('icu',this)">ICU Available</button>
+        </div>
+      </div>
+      <div class="hospitals-grid" id="hospitalsGrid"></div>
+    </div>
+
+  </div><!-- end container -->
+</div><!-- end main-wrapper -->
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <div class="footer-logo-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><rect x="11" y="4" width="2" height="5" rx="1"/><rect x="11" y="15" width="2" height="5" rx="1"/><rect x="4" y="11" width="5" height="2" rx="1"/><rect x="15" y="11" width="5" height="2" rx="1"/></svg></div>
+        MedVyavastha
+      </div>
+      <p class="footer-desc">India's hospital inventory and emergency resource network. Connecting patients to the right care, faster.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Patients</h5>
+      <a href="findhospital.html">Find Hospital</a>
+      <a href="#">Emergency Guide</a>
+      <a href="#">FAQ</a>
+    </div>
+    <div class="footer-col">
+      <h5>Hospitals</h5>
+      <a href="register.html">Register Hospital</a>
+      <a href="hospitallogin.html">Dashboard Login</a>
+      <a href="#">Support</a>
+    </div>
+    <div class="footer-col">
+      <h5>Company</h5>
+      <a href="about.html">About Us</a>
+      <a href="#">Privacy Policy</a>
+      <a href="contact us.html">Contact</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2024 MedVyavastha. All rights reserved.</span>
+    <span>Made with ❤️ for India's healthcare</span>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════
+     ✅ ONE CLEAN MODAL (no duplicates)
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalBox">
+    <div class="modal-header" id="modalHeader">
+      <button class="modal-close" onclick="closeModal()">×</button>
+      <div class="modal-hospital-name" id="modalName">Hospital Name</div>
+      <div class="modal-hospital-sub"  id="modalSub">Type • City</div>
+    </div>
+
+    <!-- live status bar -->
+    <div class="modal-status-bar" id="modalStatusBar">
+      <div class="modal-status-dot" id="modalStatusDot"></div>
+      <span class="modal-status-text" id="modalStatusText"></span>
+      <span style="margin-left:auto;font-size:0.75rem;color:var(--gray-400)" id="modalRating"></span>
+    </div>
+
+    <div class="modal-body">
+      <!-- Resources -->
+      <div class="modal-section-title">Live Resource Availability</div>
+      <div class="modal-resources" id="modalResources"></div>
+
+      <!-- Utilisation bars -->
+      <div class="modal-section-title" style="margin-top:18px;">Occupancy at a glance</div>
+      <div id="modalBars"></div>
+
+      <!-- Contact -->
+      <div class="modal-section-title">Contact & Location</div>
+      <div class="modal-contact" id="modalContact"></div>
+
+      <!-- CTAs -->
+      <div class="modal-cta">
+        <button class="cta-primary" id="modalCallBtn">📞 Call Hospital</button>
+        <button class="cta-outline" id="modalMapBtn">🗺️ Get Directions</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     APP LOGIC
+     ─────────────────────────────────────────────────────────
+     Data structure your hospitals save to Firestore:
+     /hospitals/{uid} {
+       name, type, city, address, phone, email, status,
+       resources: {
+         beds:        { avail, total }
+         icu:         { avail, total }
+         ventilators: { avail, total }
+         ot:          { avail, total }
+         ambulance:   { avail, total }
+         rooms:       { avail, total }
+         blood:       { avail, total }
+         oxygen:      { avail, total }
+       }
+     }
+     The helpers below read both the NEW nested structure AND the
+     old flat structure (h.beds, h.res_icu) so nothing breaks
+     while you migrate.
+══════════════════════════════════════════════════════════ -->
+<script>
+// ── HELPERS to read EITHER nested or flat data ──
+function getBeds(h)        { return h.resources?.beds?.avail        ?? h.beds        ?? 0; }
+function getBedTotal(h)    { return h.resources?.beds?.total        ?? 100; }
+function getICU(h)         { return h.resources?.icu?.avail         ?? h.res_icu     ?? 0; }
+function getICUTotal(h)    { return h.resources?.icu?.total         ?? 20; }
+function getVent(h)        { return h.resources?.ventilators?.avail ?? h.res_vent    ?? 0; }
+function getVentTotal(h)   { return h.resources?.ventilators?.total ?? 10; }
+function getOT(h)          { return h.resources?.ot?.avail          ?? h.res_ot      ?? 0; }
+function getOTTotal(h)     { return h.resources?.ot?.total          ?? 5; }
+function getAmb(h)         { return h.resources?.ambulance?.avail   ?? h.res_amb     ?? 0; }
+function getRooms(h)       { return h.resources?.rooms?.avail       ?? h.res_rooms   ?? 0; }
+function getBlood(h)       { return h.resources?.blood?.avail       ?? 0; }
+function getOxygen(h)      { return h.resources?.oxygen?.avail      ?? 0; }
+
+function getStatusClass(h) {
+  const s = h.status;
+  const beds = getBeds(h);
+  if (s === 'full'  || beds === 0)  return 'avail-full';
+  if (s === 'limited' || beds < 5)  return 'avail-limited';
+  return 'avail-open';
+}
+function getStatusLabel(h) {
+  const s = h.status;
+  const beds = getBeds(h);
+  if (s === 'full'  || beds === 0)  return '🔴 Full / No Vacancy';
+  if (s === 'limited' || beds < 5)  return '🟡 Limited Availability';
+  return '🟢 Emergency Open';
+}
+function getTypeKey(h) {
+  const t = (h.type || '').toLowerCase();
+  if (t.includes('private')) return 'private';
+  if (t.includes('govt') || t.includes('government') || t.includes('gov')) return 'govt';
+  return 'other';
+}
+function starsHTML(r) {
+  const n = Math.round(r || 0);
+  return '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
+}
+
+// ── GLOBAL STATE ──
+let allHospitals   = [];   // all docs from Firestore (live)
+let currentList    = [];   // list currently rendered (post-filter/sort)
+let selectedType   = 'all';  // 'all' | 'govt' | 'private'
+let nameFilter     = 'all';
+let chipFilter     = 'all';
+let userCoords     = null;
+
+// ══════════════════════════════════════════════
+// 🔥 LIVE LISTENER — auto-updates on every hospital save
+// ══════════════════════════════════════════════
+function startLiveListener() {
+  db.collection('hospitals').onSnapshot((snapshot) => {
+    allHospitals = [];
+    snapshot.forEach(doc => {
+      allHospitals.push({ _id: doc.id, ...doc.data() });
+    });
+    console.log(`[MedVyavastha] Live update: ${allHospitals.length} hospitals`);
+
+    // If results section already visible, re-render so data refreshes live
+    if (document.getElementById('resultsSection').style.display !== 'none') {
+      applySortAndFilter();
+      showToast('🔄 Hospital data updated live');
+    }
+  }, err => {
+    console.error('Firestore listener error:', err);
+  });
+}
+
+// ══════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════
+function switchTab(type) {
+  document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + type).classList.add('active');
+  document.getElementById('panel-' + type).classList.add('active');
+}
+
+// ══════════════════════════════════════════════
+// TYPE SELECTOR (govt / private cards)
+// ══════════════════════════════════════════════
+function selectType(type) {
+  document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+  if (selectedType === type) {
+    selectedType = 'all'; // deselect on second click
+  } else {
+    selectedType = type;
+    document.getElementById('type-' + type).classList.add('selected');
+  }
+}
+
+// ══════════════════════════════════════════════
+// SEARCH BY LOCATION / CITY
+// ══════════════════════════════════════════════
+function runLocationSearch() {
+  const query = document.getElementById('cityInput').value.trim().toLowerCase();
+
+  let results = [...allHospitals];
+
+  // City/name text filter
+  if (query) {
+    results = results.filter(h =>
+      (h.city  && h.city.toLowerCase().includes(query))  ||
+      (h.name  && h.name.toLowerCase().includes(query))  ||
+      (h.address && h.address.toLowerCase().includes(query))
+    );
+  }
+
+  // Type filter from cards
+  if (selectedType !== 'all') {
+    results = results.filter(h => getTypeKey(h) === selectedType);
+  }
+
+  currentList = results;
+  showResults(results, query ? `Results for "${query}"` : 'All Hospitals');
+  document.getElementById('resultsSection').scrollIntoView({ behavior:'smooth' });
+}
+
+// ══════════════════════════════════════════════
+// SEARCH BY NAME (live as-you-type)
+// ══════════════════════════════════════════════
+function nameSearch() {
+  const query = document.getElementById('nameInput').value.trim().toLowerCase();
+  let results = [...allHospitals];
+  if (query) {
+    results = results.filter(h =>
+      (h.name && h.name.toLowerCase().includes(query)) ||
+      (h.city && h.city.toLowerCase().includes(query))
+    );
+  }
+  if (nameFilter !== 'all') {
+    results = results.filter(h => getTypeKey(h) === nameFilter);
+  }
+  currentList = results;
+  showResults(results, 'Search Results');
+  document.getElementById('resultsSection').style.display = 'block';
+}
+
+function setNameFilter(filter, el) {
+  nameFilter = filter;
+  document.querySelectorAll('#panel-name .speciality-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  nameSearch();
+}
+
+// ══════════════════════════════════════════════
+// GPS DETECT
+// ══════════════════════════════════════════════
+function detectLocation() {
+  if (!navigator.geolocation) { showToast('❌ Geolocation not supported'); return; }
+  document.getElementById('detectTitle').innerHTML = '<span class="loc-spinner"></span> Locating…';
+  document.getElementById('detectSub').textContent = 'Accessing GPS…';
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    try {
+      const r    = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userCoords.lat}&lon=${userCoords.lng}`);
+      const data = await r.json();
+      const city = data.address.city || data.address.town || data.address.suburb || 'Your Area';
+      document.getElementById('detectTitle').textContent = `✅ Detected: ${city}`;
+      document.getElementById('detectSub').textContent   = data.display_name || '';
+
+      // Add distance to all hospitals and sort
+      const withDist = allHospitals.map(h => {
+        const d = (h.lat && h.lng) ? haversine(userCoords.lat, userCoords.lng, h.lat, h.lng) : null;
+        return { ...h, _dist: d };
+      }).sort((a, b) => (a._dist ?? 9999) - (b._dist ?? 9999));
+
+      currentList = withDist;
+      showResults(withDist, `Hospitals near ${city}`);
+      document.getElementById('resultsSection').scrollIntoView({ behavior:'smooth' });
+
+    } catch {
+      document.getElementById('detectTitle').textContent = '✅ Location Detected';
+      currentList = [...allHospitals];
+      showResults(allHospitals, 'All Hospitals');
+    }
+  }, () => {
+    document.getElementById('detectTitle').textContent = '📍 Access Denied';
+    showToast('Please allow location access');
+  });
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ══════════════════════════════════════════════
+// RESULT CHIP FILTER (All / Govt / Private / Open / Beds / ICU)
+// ══════════════════════════════════════════════
+function setChipFilter(filter, el) {
+  chipFilter = filter;
+  document.querySelectorAll('.filter-chip-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  applySortAndFilter();
+}
+
+// ══════════════════════════════════════════════
+// SORT + FILTER — apply on current list
+// ══════════════════════════════════════════════
+function applySortAndFilter() {
+  let list = [...currentList];
+
+  // Chip filter
+  if (chipFilter === 'govt')    list = list.filter(h => getTypeKey(h) === 'govt');
+  if (chipFilter === 'private') list = list.filter(h => getTypeKey(h) === 'private');
+  if (chipFilter === 'open')    list = list.filter(h => (h.status === 'open') || (getBeds(h) > 0));
+  if (chipFilter === 'beds')    list = list.filter(h => getBeds(h) > 0);
+  if (chipFilter === 'icu')     list = list.filter(h => getICU(h) > 0);
+
+  // Sort
+  const sort = document.getElementById('sortSelect').value;
+  if (sort === 'name')   list.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  if (sort === 'beds')   list.sort((a,b) => getBeds(b) - getBeds(a));
+  if (sort === 'icu')    list.sort((a,b) => getICU(b)  - getICU(a));
+  if (sort === 'status') list.sort((a,b) => {
+    const order = { open:0, limited:1, full:2 };
+    return (order[a.status]??1) - (order[b.status]??1);
+  });
+
+  renderCards(list);
+  document.getElementById('resultsCount').textContent = `Showing ${list.length} of ${currentList.length} hospitals`;
+}
+
+// ══════════════════════════════════════════════
+// SHOW RESULTS SECTION
+// ══════════════════════════════════════════════
+function showResults(list, title) {
+  document.getElementById('resultsSection').style.display = 'block';
+  document.getElementById('resultsTitle').textContent = title;
+  currentList = list;
+  applySortAndFilter();
+}
+
+// ══════════════════════════════════════════════
+// RENDER HOSPITAL CARDS
+// ══════════════════════════════════════════════
+function renderCards(list) {
+  const grid = document.getElementById('hospitalsGrid');
+
+  if (!list.length) {
+    grid.innerHTML = `
+      <div class="no-results">
+        <div class="no-results-icon">🔍</div>
+        <h3>No hospitals found</h3>
+        <p>Try a different search term, city, or remove filters.</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(h => {
+    const beds   = getBeds(h);
+    const icu    = getICU(h);
+    const vent   = getVent(h);
+    const bedCls = beds === 0 ? 'low' : beds < 5 ? 'mid' : '';
+    const icuCls = icu  === 0 ? 'low' : icu  < 3 ? 'mid' : '';
+    const stCls  = getStatusClass(h);
+    const stLbl  = getStatusLabel(h);
+    const typeKey = getTypeKey(h);
+    const distLabel = h._dist != null ? `${h._dist.toFixed(1)} km` : (h.city || '');
+    const rating  = parseFloat(h.rating) || 0;
+    const reviews = h.reviews ? Number(h.reviews).toLocaleString() : '';
+
+    return `
+    <div class="hospital-card" onclick="openModal('${h._id}')">
+      <div class="card-header ${typeKey}">
+        <div class="card-dist">📍 ${distLabel}</div>
+        <div class="card-name">${h.name || 'Unknown Hospital'}</div>
+        <div class="card-type-badge">${(h.type || 'General').toUpperCase()}</div>
+      </div>
+      <div class="card-body">
+        ${rating ? `<div class="card-rating"><span class="stars">${starsHTML(rating)}</span> <strong>${rating.toFixed(1)}</strong>${reviews ? ` <span>(${reviews} reviews)</span>` : ''}</div>` : ''}
+        <div class="resources-grid">
+          <div class="resource-item">
+            <div class="resource-num ${bedCls}">${beds}</div>
+            <div class="resource-label">Beds Free</div>
+          </div>
+          <div class="resource-item">
+            <div class="resource-num ${icuCls}">${icu}</div>
+            <div class="resource-label">ICU Free</div>
+          </div>
+          <div class="resource-item">
+            <div class="resource-num">${vent}</div>
+            <div class="resource-label">Ventilators</div>
+          </div>
+        </div>
+        <div class="card-availability ${stCls}">
+          <div class="avail-dot"></div>${stLbl}
+        </div>
+        <button class="card-action">View Details & Contact →</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// OPEN MODAL — looks up live data by ID
+// ══════════════════════════════════════════════
+function openModal(id) {
+  const h = allHospitals.find(x => x._id === id);
+  if (!h) { showToast('Hospital data not found'); return; }
+
+  const typeKey = getTypeKey(h);
+  const beds    = getBeds(h);   const bedTotal  = getBedTotal(h);
+  const icu     = getICU(h);    const icuTotal   = getICUTotal(h);
+  const vent    = getVent(h);   const ventTotal  = getVentTotal(h);
+  const ot      = getOT(h);     const otTotal    = getOTTotal(h);
+  const amb     = getAmb(h);
+  const rooms   = getRooms(h);
+  const blood   = getBlood(h);
+  const oxygen  = getOxygen(h);
+
+  // Header
+  const hdr = document.getElementById('modalHeader');
+  hdr.className = 'modal-header ' + typeKey;
+  document.getElementById('modalName').textContent = h.name || 'Hospital';
+  document.getElementById('modalSub').textContent  = `${(h.type||'General').toUpperCase()} • ${h.city||''}`;
+
+  // Status bar
+  const isOpen = h.status === 'open' || (beds > 0 && h.status !== 'full');
+  const isLtd  = h.status === 'limited' || (beds > 0 && beds < 5);
+  const dotEl  = document.getElementById('modalStatusDot');
+  const txtEl  = document.getElementById('modalStatusText');
+  if (h.status === 'full' || beds === 0) {
+    dotEl.style.background = 'var(--red)';
+    txtEl.style.color      = 'var(--red)';
+    txtEl.textContent      = 'Full / No Vacancy';
+  } else if (h.status === 'limited' || beds < 5) {
+    dotEl.style.background = 'var(--orange)';
+    txtEl.style.color      = 'var(--orange)';
+    txtEl.textContent      = 'Limited Availability';
+  } else {
+    dotEl.style.background = 'var(--green)';
+    txtEl.style.color      = 'var(--green)';
+    txtEl.textContent      = 'Emergency Open';
+  }
+  const rating = parseFloat(h.rating) || 0;
+  document.getElementById('modalRating').textContent = rating ? `★ ${rating.toFixed(1)}` : '';
+
+  // Resource grid (8 boxes)
+  const resDefs = [
+    { icon:'🛏️', val:beds,   lbl:'Beds Free',    cls: beds===0?'low':beds<5?'mid':'' },
+    { icon:'🏥', val:icu,    lbl:'ICU Free',     cls: icu===0?'low':icu<3?'mid':'' },
+    { icon:'💨', val:vent,   lbl:'Ventilators',  cls: vent===0?'low':'' },
+    { icon:'🔬', val:ot,     lbl:'OT Rooms',     cls: ot===0?'low':'' },
+    { icon:'🚑', val:amb,    lbl:'Ambulances',   cls: amb===0?'low':'' },
+    { icon:'🚪', val:rooms,  lbl:'Private Rooms',cls:'' },
+    { icon:'🩸', val:blood,  lbl:'Blood (O+)',   cls: blood===0?'low':'' },
+    { icon:'🫁', val:oxygen, lbl:'Oxygen Beds',  cls:'' },
+  ];
+  document.getElementById('modalResources').innerHTML = resDefs.map(r => `
+    <div class="modal-resource">
+      <div class="modal-resource-icon">${r.icon}</div>
+      <div class="modal-resource-val ${r.cls}">${r.val}</div>
+      <div class="modal-resource-lbl">${r.lbl}</div>
+    </div>`).join('');
+
+  // Occupancy bars
+  function bar(label, avail, total) {
+    const occ = total > 0 ? Math.round(((total - avail) / total) * 100) : 0;
+    const color = occ >= 85 ? 'var(--red)' : occ >= 60 ? 'var(--orange)' : 'var(--green)';
+    return `<div class="modal-bar-row">
+      <div class="modal-bar-label">${label}</div>
+      <div class="modal-bar-track"><div class="modal-bar-fill" style="width:${occ}%;background:${color}"></div></div>
+      <div class="modal-bar-pct">${occ}%</div>
+    </div>`;
+  }
+  document.getElementById('modalBars').innerHTML =
+    bar('General Beds', beds, bedTotal) +
+    bar('ICU', icu, icuTotal) +
+    bar('Ventilators', vent, ventTotal) +
+    bar('OT Rooms', ot, otTotal);
+
+  // Contact
+  document.getElementById('modalContact').innerHTML = `
+    <div class="contact-row">
+      <div class="contact-icon">📞</div>
+      <div><div class="contact-label">Emergency Phone</div><div class="contact-val">${h.phone || 'Not provided'}</div></div>
+    </div>
+    <div class="contact-row">
+      <div class="contact-icon">📍</div>
+      <div><div class="contact-label">Address</div><div class="contact-val">${h.address || h.city || 'Bihar, India'}</div></div>
+    </div>
+    ${h.email ? `<div class="contact-row">
+      <div class="contact-icon">✉️</div>
+      <div><div class="contact-label">Email</div><div class="contact-val">${h.email}</div></div>
+    </div>` : ''}
+    ${h.website ? `<div class="contact-row">
+      <div class="contact-icon">🌐</div>
+      <div><div class="contact-label">Website</div><div class="contact-val"><a href="${h.website}" target="_blank" style="color:var(--blue-500)">${h.website}</a></div></div>
+    </div>` : ''}`;
+
+  // CTA buttons
+  document.getElementById('modalCallBtn').onclick = () => {
+    if (h.phone) window.location.href = 'tel:' + h.phone;
+    else showToast('📞 Phone number not available');
+  };
+  document.getElementById('modalMapBtn').onclick = () => {
+    const addr = encodeURIComponent((h.address || h.name || '') + ' ' + (h.city || 'Bihar'));
+    window.open('https://www.google.com/maps/search/' + addr, '_blank');
+  };
+
+  // Open overlay
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ══════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  startLiveListener();
+});
+</script>
+<script>
+  window.onload = () => {
+    startLiveListener();   // 🔥 load hospitals from Firebase
+  };
+</script>
+</body>
+</html>

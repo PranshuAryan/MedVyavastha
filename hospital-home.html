@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hospital Dashboard — MedVyavastha</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- ✅ Firebase v9 compat (works in plain HTML, no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+:root {
+  --bg: #070d1a;
+  --bg2: #0c1424;
+  --bg3: #101d35;
+  --surface: #13213d;
+  --surface2: #1a2c4e;
+  --border: rgba(59,130,246,0.15);
+  --border2: rgba(59,130,246,0.28);
+  --blue: #3b82f6;
+  --blue-bright: #60a5fa;
+  --blue-dim: #1d4ed8;
+  --cyan: #06d6c7;
+  --green: #10d97e;
+  --orange: #f59e0b;
+  --red: #f43f5e;
+  --white: #f0f6ff;
+  --muted: rgba(160,180,220,0.55);
+  --font-display: 'Sora', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --glow: 0 0 24px rgba(59,130,246,0.18);
+  --glow-strong: 0 0 40px rgba(59,130,246,0.28);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { font-family:var(--font-body); background:var(--bg); color:var(--white); min-height:100vh; overflow-x:hidden; }
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--bg2); }
+::-webkit-scrollbar-thumb { background:var(--surface2); border-radius:10px; }
+
+/* ── LOADING SCREEN ── */
+#loadingScreen {
+  position:fixed; inset:0; background:var(--bg); z-index:9999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+}
+.loading-logo { font-family:var(--font-display); font-size:1.4rem; font-weight:800; color:var(--white); }
+.loading-logo span { color:var(--blue-bright); }
+.loading-bar-track { width:200px; height:3px; background:var(--surface2); border-radius:100px; overflow:hidden; }
+.loading-bar-fill { height:100%; background:linear-gradient(90deg,var(--blue),var(--cyan)); border-radius:100px; animation:loadBar 1.8s ease-in-out infinite; }
+@keyframes loadBar { 0%{width:0%} 60%{width:100%} 100%{width:100%} }
+.loading-sub { font-size:0.78rem; color:var(--muted); }
+
+/* ── LAYOUT ── */
+.app { display:flex; min-height:100vh; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width:240px; flex-shrink:0; background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column;
+  position:fixed; top:0; left:0; bottom:0; z-index:50;
+}
+.sidebar-logo {
+  padding:24px 20px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+}
+.logo-icon {
+  width:36px; height:36px; background:var(--blue);
+  border-radius:10px; display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--glow); flex-shrink:0;
+}
+.logo-text { font-family:var(--font-display); font-size:0.88rem; font-weight:700; color:var(--white); line-height:1.2; }
+.logo-text span { color:var(--blue-bright); font-size:0.7rem; font-weight:400; display:block; }
+.sidebar-nav { flex:1; padding:16px 10px; display:flex; flex-direction:column; gap:3px; overflow-y:auto; }
+.nav-section-label { font-size:0.65rem; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); padding:12px 10px 6px; }
+.nav-item {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 12px; border-radius:10px;
+  font-size:0.85rem; font-weight:500; color:var(--muted);
+  cursor:pointer; transition:all 0.2s; text-decoration:none;
+  border:1px solid transparent;
+}
+.nav-item:hover { background:var(--surface); color:var(--white); border-color:var(--border); }
+.nav-item.active { background:rgba(59,130,246,0.15); color:var(--blue-bright); border-color:var(--border2); }
+.nav-item svg { width:16px; height:16px; flex-shrink:0; }
+.nav-badge { margin-left:auto; background:var(--red); color:white; font-size:0.65rem; font-weight:700; border-radius:100px; padding:1px 6px; }
+.sidebar-footer { padding:14px 10px; border-top:1px solid var(--border); }
+
+/* logout button */
+.logout-btn {
+  width:100%; padding:9px 12px; background:rgba(244,63,94,0.08);
+  border:1px solid rgba(244,63,94,0.2); border-radius:10px;
+  color:rgba(244,63,94,0.8); font-family:var(--font-body);
+  font-size:0.82rem; font-weight:500; cursor:pointer;
+  display:flex; align-items:center; gap:9px;
+  transition:all 0.2s; margin-top:10px;
+}
+.logout-btn:hover { background:rgba(244,63,94,0.15); border-color:rgba(244,63,94,0.4); color:var(--red); }
+
+/* ── MAIN ── */
+.main { margin-left:240px; flex:1; display:flex; flex-direction:column; min-height:100vh; }
+
+/* ── TOPBAR ── */
+.topbar {
+  height:60px; background:var(--bg2); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 28px; position:sticky; top:0; z-index:40;
+}
+.topbar-left { display:flex; align-items:center; gap:14px; }
+.topbar-title { font-family:var(--font-display); font-size:0.95rem; font-weight:700; }
+.topbar-subtitle { font-size:0.78rem; color:var(--muted); }
+.topbar-right { display:flex; align-items:center; gap:12px; }
+.topbar-pill {
+  display:flex; align-items:center; gap:7px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:100px; padding:6px 14px; font-size:0.78rem;
+}
+.pulse-dot {
+  width:8px; height:8px; border-radius:50%; background:var(--green);
+  box-shadow:0 0 8px var(--green); flex-shrink:0;
+  animation:pulse 2s infinite;
+}
+.pulse-dot.yellow { background:var(--orange); box-shadow:0 0 8px var(--orange); }
+.pulse-dot.red { background:var(--red); box-shadow:0 0 8px var(--red); }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
+.topbar-save-btn {
+  padding:8px 18px; background:var(--blue); color:white;
+  border:none; border-radius:8px; font-family:var(--font-body);
+  font-size:0.82rem; font-weight:600; cursor:pointer;
+  transition:all 0.2s; display:flex; align-items:center; gap:7px;
+  box-shadow:var(--glow);
+}
+.topbar-save-btn:hover { background:#2563eb; transform:translateY(-1px); box-shadow:var(--glow-strong); }
+.topbar-save-btn:active { transform:translateY(0); }
+.topbar-save-btn.saved { background:var(--green); box-shadow:0 0 20px rgba(16,217,126,0.3); }
+.last-updated { font-size:0.72rem; color:var(--muted); font-family:var(--font-mono); }
+.unsaved-chip {
+  display:none; align-items:center; gap:6px;
+  padding:4px 11px; background:rgba(245,158,11,0.12);
+  border:1px solid rgba(245,158,11,0.3); border-radius:100px;
+  font-size:0.72rem; color:var(--orange); font-weight:500;
+}
+.unsaved-chip.visible { display:flex; animation:fadeIn 0.2s ease; }
+
+/* ── CONTENT ── */
+.content { padding:28px; flex:1; }
+.tab-content { display:none; }
+.tab-content.active { display:block; animation:fadeIn 0.25s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+/* ── PAGE HEADER ── */
+.page-header { margin-bottom:24px; }
+.page-header h1 { font-family:var(--font-display); font-size:1.4rem; font-weight:800; }
+.page-header p { color:var(--muted); font-size:0.85rem; margin-top:4px; }
+
+/* ── STAT CARDS ── */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+@media(max-width:1100px){ .stats-row{grid-template-columns:repeat(2,1fr);} }
+.stat-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:18px 20px;
+  transition:all 0.25s; position:relative; overflow:hidden;
+}
+.stat-card:hover { border-color:var(--border2); box-shadow:var(--glow); transform:translateY(-2px); }
+.stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; border-radius:14px 14px 0 0; }
+.stat-card.blue::before { background:linear-gradient(90deg,var(--blue),var(--cyan)); }
+.stat-card.green::before { background:linear-gradient(90deg,var(--green),#06d6a0); }
+.stat-card.orange::before { background:linear-gradient(90deg,var(--orange),#f97316); }
+.stat-card.red::before { background:linear-gradient(90deg,var(--red),#fb7185); }
+.stat-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; margin-bottom:14px; }
+.stat-icon.blue-bg { background:rgba(59,130,246,0.15); }
+.stat-icon.green-bg { background:rgba(16,217,126,0.12); }
+.stat-icon.orange-bg { background:rgba(245,158,11,0.12); }
+.stat-icon.red-bg { background:rgba(244,63,94,0.12); }
+.stat-val { font-family:var(--font-display); font-size:2rem; font-weight:800; color:var(--white); line-height:1; }
+.stat-lbl { font-size:0.78rem; color:var(--muted); margin-top:4px; }
+.stat-change { display:flex; align-items:center; gap:5px; font-size:0.72rem; margin-top:8px; font-weight:500; }
+.stat-change.up { color:var(--green); }
+.stat-change.down { color:var(--red); }
+.stat-change.warn { color:var(--orange); }
+
+/* ── SPARKLINES ── */
+.sparkline-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px; }
+.sparkline-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; }
+.sparkline-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.sparkline-val { font-family:var(--font-display); font-size:1.6rem; font-weight:800; }
+.sparkline-lbl { font-size:0.75rem; color:var(--muted); margin-top:2px; }
+svg.sparkline { width:100%; height:44px; }
+
+/* ── SECTION HEADER ── */
+.section-hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.section-title { font-family:var(--font-display); font-size:1rem; font-weight:700; }
+.section-title small { font-size:0.75rem; color:var(--muted); font-weight:400; margin-left:8px; font-family:var(--font-body); }
+.pill-btn {
+  padding:6px 14px; border-radius:8px; border:1px solid var(--border2);
+  background:transparent; color:var(--blue-bright); font-size:0.78rem;
+  font-weight:500; cursor:pointer; font-family:var(--font-body);
+  transition:all 0.2s; display:flex; align-items:center; gap:6px;
+}
+.pill-btn:hover { background:rgba(59,130,246,0.1); }
+
+/* ── TABLE ── */
+.occ-table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:24px; }
+.occ-table { width:100%; border-collapse:collapse; }
+.occ-table th { background:var(--surface2); padding:11px 16px; text-align:left; font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); border-bottom:1px solid var(--border); }
+.occ-table td { padding:12px 16px; border-bottom:1px solid rgba(59,130,246,0.07); font-size:0.83rem; vertical-align:middle; }
+.occ-table tr:last-child td { border-bottom:none; }
+.occ-table tr:hover td { background:rgba(59,130,246,0.04); }
+.td-name { font-weight:600; display:flex; align-items:center; gap:10px; }
+.occ-mini-bar { flex:1; height:5px; background:rgba(255,255,255,0.06); border-radius:100px; overflow:hidden; min-width:80px; }
+.occ-mini-fill { height:100%; border-radius:100px; }
+.badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:100px; font-size:0.7rem; font-weight:600; }
+.badge-green { background:rgba(16,217,126,0.12); color:var(--green); }
+.badge-yellow { background:rgba(245,158,11,0.12); color:var(--orange); }
+.badge-red { background:rgba(244,63,94,0.12); color:var(--red); }
+
+/* ── RESOURCE GRID ── */
+.resource-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px; }
+@media(max-width:900px){ .resource-grid{grid-template-columns:repeat(2,1fr);} }
+.resource-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:18px; transition:all 0.25s;
+}
+.resource-card:hover { border-color:var(--border2); }
+.res-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.res-icon-name { display:flex; align-items:center; gap:10px; }
+.res-icon { font-size:1.3rem; }
+.res-name { font-weight:600; font-size:0.88rem; }
+.res-sub { font-size:0.7rem; color:var(--muted); }
+.res-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.res-status-dot.green { background:var(--green); box-shadow:0 0 6px var(--green); }
+.res-status-dot.yellow { background:var(--orange); box-shadow:0 0 6px var(--orange); }
+.res-status-dot.red { background:var(--red); box-shadow:0 0 6px var(--red); }
+.occ-bar-wrap { margin-bottom:12px; }
+.occ-bar-labels { display:flex; justify-content:space-between; font-size:0.7rem; color:var(--muted); margin-bottom:5px; }
+.occ-bar-track { height:6px; background:rgba(255,255,255,0.06); border-radius:100px; overflow:hidden; }
+.occ-bar-fill { height:100%; border-radius:100px; transition:width 0.5s ease; }
+.occ-bar-fill.low { background:linear-gradient(90deg,var(--green),#06d6a0); }
+.occ-bar-fill.mid { background:linear-gradient(90deg,var(--orange),#f97316); }
+.occ-bar-fill.high { background:linear-gradient(90deg,var(--red),#fb7185); }
+.counter-row { display:flex; align-items:center; gap:0; margin-top:10px; }
+.counter-label { font-size:0.72rem; color:var(--muted); flex:1; }
+.counter-wrap { display:flex; align-items:center; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; overflow:hidden; }
+.counter-btn { width:30px; height:30px; background:transparent; border:none; color:var(--blue-bright); font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
+.counter-btn:hover { background:rgba(59,130,246,0.15); }
+.counter-val { width:44px; text-align:center; background:transparent; border:none; color:var(--white); font-family:var(--font-mono); font-size:0.9rem; font-weight:600; outline:none; padding:0; }
+.counter-val::-webkit-outer-spin-button,.counter-val::-webkit-inner-spin-button { -webkit-appearance:none; }
+.counter-val {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.res-note { font-size:0.7rem; color:var(--muted); margin-top:8px; font-style:italic; }
+
+/* ── ALERT CARDS ── */
+.alert-list { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; }
+.alert-item {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:14px 16px;
+  display:flex; align-items:flex-start; gap:14px;
+  animation:fadeIn 0.3s ease;
+}
+.alert-item.critical { border-color:rgba(244,63,94,0.35); background:rgba(244,63,94,0.05); }
+.alert-item.warning { border-color:rgba(245,158,11,0.35); background:rgba(245,158,11,0.05); }
+.alert-item.info { border-color:rgba(59,130,246,0.3); background:rgba(59,130,246,0.05); }
+.alert-icon-wrap { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+.alert-icon-wrap.critical { background:rgba(244,63,94,0.15); }
+.alert-icon-wrap.warning { background:rgba(245,158,11,0.15); }
+.alert-icon-wrap.info { background:rgba(59,130,246,0.15); }
+.alert-text { flex:1; }
+.alert-title { font-weight:600; font-size:0.85rem; }
+.alert-sub { font-size:0.75rem; color:var(--muted); margin-top:2px; }
+.alert-dismiss { background:none; border:none; color:var(--muted); cursor:pointer; font-size:1rem; line-height:1; padding:0; flex-shrink:0; transition:color 0.2s; }
+.alert-dismiss:hover { color:var(--white); }
+
+/* ── OCCUPANCY TABLE ── */
+.inline-num-input { background:var(--bg3); border:1px solid var(--border2); border-radius:6px; color:var(--white); font-family:var(--font-mono); font-size:0.82rem; font-weight:600; width:56px; text-align:center; padding:4px; outline:none; }
+.inline-num-input:focus { border-color:var(--blue); }
+.inline-num-input::-webkit-outer-spin-button,.inline-num-input::-webkit-inner-spin-button { -webkit-appearance:none; }
+
+/* ── WARDS ── */
+.ward-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-bottom:24px; }
+.ward-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; }
+.ward-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+.ward-name { font-family:var(--font-display); font-size:0.95rem; font-weight:700; }
+.ward-dept { font-size:0.72rem; color:var(--muted); margin-top:2px; }
+.ward-nums { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+.ward-num-item { background:var(--bg3); border-radius:8px; padding:10px 8px; text-align:center; }
+.ward-num-val { font-family:var(--font-display); font-size:1.2rem; font-weight:800; }
+.ward-num-lbl { font-size:0.62rem; color:var(--muted); margin-top:2px; }
+.ward-bar { height:6px; background:rgba(255,255,255,0.06); border-radius:100px; overflow:hidden; }
+.ward-bar-fill { height:100%; border-radius:100px; transition:width 0.5s; }
+
+/* ── LOG ── */
+.log-wrap { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:24px; }
+.log-table { width:100%; border-collapse:collapse; }
+.log-table th { background:var(--surface2); padding:11px 16px; text-align:left; font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); border-bottom:1px solid var(--border); }
+.log-table td { padding:10px 16px; border-bottom:1px solid rgba(59,130,246,0.07); font-size:0.81rem; }
+.log-table tr:last-child td { border-bottom:none; }
+.log-table tr:hover td { background:rgba(59,130,246,0.04); }
+.log-date { font-family:var(--font-mono); font-size:0.73rem; color:var(--muted); }
+
+/* ── DATE FILTER ── */
+.date-row { display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.date-input { background:var(--surface); border:1px solid var(--border2); border-radius:8px; color:var(--white); font-family:var(--font-body); font-size:0.82rem; padding:8px 12px; outline:none; color-scheme:dark; }
+.date-input:focus { border-color:var(--blue); }
+.date-btn { padding:8px 14px; border-radius:8px; border:1px solid var(--border2); background:transparent; color:var(--muted); font-size:0.78rem; font-weight:500; cursor:pointer; font-family:var(--font-body); transition:all 0.2s; }
+.date-btn.active,.date-btn:hover { background:rgba(59,130,246,0.12); color:var(--blue-bright); }
+
+/* ── SETTINGS ── */
+.settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+@media(max-width:800px){ .settings-grid{grid-template-columns:1fr;} }
+.settings-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; }
+.settings-card h3 { font-family:var(--font-display); font-size:0.92rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:9px; }
+.form-field { margin-bottom:14px; }
+.form-field label { display:block; font-size:0.75rem; font-weight:500; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em; }
+.form-field input, .form-field select, .form-field textarea {
+  width:100%; padding:9px 12px; background:var(--bg3);
+  border:1px solid var(--border2); border-radius:8px;
+  color:var(--white); font-family:var(--font-body); font-size:0.85rem;
+  outline:none; transition:border-color 0.2s;
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
+.form-field select { color-scheme:dark; cursor:pointer; }
+.form-field textarea { min-height:80px; resize:vertical; }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+.toggle-row:last-child { border-bottom:none; }
+.toggle-label { font-size:0.84rem; }
+.toggle-sub { font-size:0.72rem; color:var(--muted); margin-top:2px; }
+.toggle { position:relative; width:42px; height:24px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; border-radius:100px; background:var(--surface2); cursor:pointer; transition:0.25s; border:1px solid var(--border2); }
+.toggle-slider::before { content:''; position:absolute; width:16px; height:16px; background:var(--muted); border-radius:50%; left:3px; top:50%; transform:translateY(-50%); transition:0.25s; }
+.toggle input:checked + .toggle-slider { background:rgba(59,130,246,0.3); border-color:var(--blue); }
+.toggle input:checked + .toggle-slider::before { background:var(--blue-bright); transform:translate(18px,-50%); }
+
+/* ── TOAST ── */
+#toast {
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--surface2); color:var(--white); padding:12px 22px;
+  border-radius:100px; font-size:0.84rem; font-weight:500;
+  z-index:999; opacity:0; transition:all 0.3s ease;
+  border:1px solid var(--border2); box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  white-space:nowrap; pointer-events:none;
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* info banner */
+.info-banner { background:rgba(59,130,246,0.06); border:1px solid var(--border2); border-radius:10px; padding:12px 16px; margin-bottom:22px; display:flex; align-items:center; gap:10px; font-size:0.82rem; color:var(--blue-bright); }
+</style>
+</head>
+<body>
+
+<!-- ── LOADING SCREEN ── -->
+<div id="loadingScreen">
+  <div class="loading-logo">Med<span>Vyavastha</span></div>
+  <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
+  <div class="loading-sub" id="loadingMsg">Checking authentication…</div>
+</div>
+
+<div class="app" id="appShell" style="display:none;">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><rect x="11" y="4" width="2" height="5" rx="1"/><rect x="11" y="15" width="2" height="5" rx="1"/><rect x="4" y="11" width="5" height="2" rx="1"/><rect x="15" y="11" width="5" height="2" rx="1"/></svg>
+    </div>
+    <div class="logo-text">MedVyavastha<span>Hospital Admin Panel</span></div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a class="nav-item active" onclick="showTab('overview')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item" onclick="showTab('resources')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4M17 12h4M12 3v4M12 17v4"/><circle cx="12" cy="12" r="4"/></svg>
+      Resource Manager
+    </a>
+    <a class="nav-item" onclick="showTab('occupancy')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+      Occupancy
+    </a>
+    <div class="nav-section-label">Operations</div>
+    <a class="nav-item" onclick="showTab('wards')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+      Wards & Depts
+    </a>
+    <a class="nav-item" onclick="showTab('log')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Admission Log
+    </a>
+    <a class="nav-item" onclick="showTab('alerts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      Alerts
+      <span class="nav-badge" id="alertBadge" style="display:none">0</span>
+    </a>
+    <div class="nav-section-label">Account</div>
+    <a class="nav-item" onclick="showTab('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div style="font-size:0.72rem;color:var(--muted);padding:4px 4px 8px;font-family:var(--font-mono);" id="sidebarEmail">—</div>
+    <button class="logout-btn" onclick="handleLogout()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Logout
+    </button>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="topbar-title" id="topbarHospitalName">Loading…</div>
+        <div class="topbar-subtitle">Last synced: <span id="lastSynced" class="last-updated">—</span></div>
+      </div>
+      <div class="unsaved-chip" id="unsavedChip">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Unsaved changes
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-pill">
+        <div class="pulse-dot" id="statusDot"></div>
+        <span id="statusLabel">Emergency Open</span>
+      </div>
+      <button class="topbar-save-btn" id="saveBtn" onclick="saveAllData()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+        Save to DB
+      </button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ═══ OVERVIEW ═══ -->
+    <div class="tab-content active" id="tab-overview">
+      <div class="page-header">
+        <h1>Dashboard Overview</h1>
+        <p>Live snapshot of <span id="ovHospitalName">—</span> — updated <span id="ovLastUpdated">—</span></p>
+      </div>
+      <div class="stats-row" id="statsRow"></div>
+      <div class="sparkline-row" id="sparklineRow"></div>
+      <div class="section-hd">
+        <div class="section-title">Resource Status <small>All departments</small></div>
+        <button class="pill-btn" onclick="showTab('resources')">Edit Resources →</button>
+      </div>
+      <div class="occ-table-wrap">
+        <table class="occ-table">
+          <thead><tr><th>Resource</th><th>Available</th><th>Total</th><th>Occupancy</th><th>Status</th><th>Last Updated</th></tr></thead>
+          <tbody id="overviewTableBody"></tbody>
+        </table>
+      </div>
+      <div class="section-hd">
+        <div class="section-title">Recent Alerts</div>
+        <button class="pill-btn" onclick="showTab('alerts')">View All →</button>
+      </div>
+      <div class="alert-list" id="alertPreview"></div>
+    </div>
+
+    <!-- ═══ RESOURCE MANAGER ═══ -->
+    <div class="tab-content" id="tab-resources">
+      <div class="page-header">
+        <h1>Resource Manager</h1>
+        <p>Update real-time availability for each resource. Click <strong>Save to DB</strong> to push to Firebase.</p>
+      </div>
+      <div class="info-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Enter the number of <strong style="margin:0 4px">currently available</strong> units. Tap Save to DB in the top-right to write to your database.
+      </div>
+      <div class="resource-grid" id="resourceGrid"></div>
+    </div>
+
+    <!-- ═══ OCCUPANCY ═══ -->
+    <div class="tab-content" id="tab-occupancy">
+      <div class="page-header">
+        <h1>Occupancy Tracker</h1>
+        <p>Monitor bed occupancy and current patient distribution.</p>
+      </div>
+      <div class="date-row">
+        <span style="font-size:0.78rem;color:var(--muted);">Period:</span>
+        <button class="date-btn active" onclick="setDateRange(this,'today')">Today</button>
+        <button class="date-btn" onclick="setDateRange(this,'week')">This Week</button>
+        <button class="date-btn" onclick="setDateRange(this,'month')">This Month</button>
+        <input type="date" class="date-input" id="dateFrom" />
+        <span style="color:var(--muted);">—</span>
+        <input type="date" class="date-input" id="dateTo" />
+        <button class="pill-btn" onclick="applyCustomDate()">Apply</button>
+      </div>
+      <div class="section-hd"><div class="section-title">Bed & Resource Occupancy</div></div>
+      <div class="occ-table-wrap" style="margin-bottom:24px;">
+        <table class="occ-table">
+          <thead><tr><th>Resource</th><th>Available</th><th>Occupied</th><th>Total</th><th>% Occupied</th><th>Status</th><th>Update Available</th></tr></thead>
+          <tbody id="occupancyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ WARDS ═══ -->
+    <div class="tab-content" id="tab-wards">
+      <div class="page-header">
+        <h1>Wards & Departments</h1>
+        <p>Per-ward bed status and occupancy.</p>
+      </div>
+      <div class="ward-grid" id="wardGrid"></div>
+    </div>
+
+    <!-- ═══ LOG ═══ -->
+    <div class="tab-content" id="tab-log">
+      <div class="page-header">
+        <h1>Admission / Discharge Log</h1>
+        <p>Audit trail of all resource updates this session.</p>
+      </div>
+      <div class="section-hd">
+        <div class="section-title">Change Log <small id="logCount"></small></div>
+        <button class="pill-btn" onclick="clearLog()">Clear Log</button>
+      </div>
+      <div class="log-wrap">
+        <table class="log-table">
+          <thead><tr><th>Timestamp</th><th>Action</th><th>Resource</th><th>Before</th><th>After</th></tr></thead>
+          <tbody id="logTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ ALERTS ═══ -->
+    <div class="tab-content" id="tab-alerts">
+      <div class="page-header">
+        <h1>Alerts & Notifications</h1>
+        <p>Automatic alerts triggered by threshold breaches.</p>
+      </div>
+      <div class="section-hd">
+        <div class="section-title">Active Alerts</div>
+        <button class="pill-btn" onclick="dismissAllAlerts()">Dismiss All</button>
+      </div>
+      <div class="alert-list" id="alertsContainer"></div>
+    </div>
+
+    <!-- ═══ SETTINGS ═══ -->
+    <div class="tab-content" id="tab-settings">
+      <div class="page-header">
+        <h1>Hospital Settings</h1>
+        <p>Update hospital info. Changes save to Firebase when you click Save to DB.</p>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <h3>🏥 Hospital Information</h3>
+          <div class="form-field"><label>Hospital Name</label><input type="text" id="set_name" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>Type</label>
+            <select id="set_type" onchange="markUnsaved()">
+              <option>Government Medical Institute</option>
+              <option>Government Teaching Hospital</option>
+              <option>Government Multi-Specialty</option>
+              <option>Government District Hospital</option>
+              <option>Government Specialty</option>
+              <option>Private Multi-Specialty</option>
+              <option>Private Hospital</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Address</label><input type="text" id="set_address" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>City</label><input type="text" id="set_city" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>Emergency Status</label>
+            <select id="set_status" onchange="markUnsaved()">
+              <option value="open">Emergency Open</option>
+              <option value="limited">Limited Availability</option>
+              <option value="full">Full / No Vacancy</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-card">
+          <h3>📞 Contact & Emergency</h3>
+          <div class="form-field"><label>Emergency Phone</label><input type="tel" id="set_phone" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>Admin Email</label><input type="email" id="set_email" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>Ambulance Number</label><input type="tel" id="set_amb" value="108" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>Website URL</label><input type="url" id="set_website" placeholder="https://…" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>Description</label><textarea id="set_desc" oninput="markUnsaved()" placeholder="Brief description shown to patients…"></textarea></div>
+        </div>
+        <div class="settings-card">
+          <h3>⚙️ Alert Thresholds</h3>
+          <p style="font-size:0.78rem;color:var(--muted);margin-bottom:16px;">Auto-alerts fire when resources drop below these values.</p>
+          <div class="form-field"><label>Beds — Critical Below</label><input type="number" id="thr_beds" value="5" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>ICU — Critical Below</label><input type="number" id="thr_icu" value="2" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>Ventilators — Critical Below</label><input type="number" id="thr_vent" value="2" oninput="markUnsaved()" /></div>
+          <div class="form-field"><label>OT — Warning Below</label><input type="number" id="thr_ot" value="1" oninput="markUnsaved()" /></div>
+        </div>
+        <div class="settings-card">
+          <h3>🔔 Notifications</h3>
+          <div class="toggle-row"><div><div class="toggle-label">Low-resource alerts</div><div class="toggle-sub">Notify when beds/ICU drop below threshold</div></div><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></div>
+          <div class="toggle-row"><div><div class="toggle-label">Daily summary email</div><div class="toggle-sub">End-of-day occupancy report</div></div><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></div>
+          <div class="toggle-row"><div><div class="toggle-label">Patient inquiry alerts</div><div class="toggle-sub">Notify when a patient views your listing</div></div><label class="toggle"><input type="checkbox" /><span class="toggle-slider"></span></label></div>
+          <div class="toggle-row"><div><div class="toggle-label">Auto-status update</div><div class="toggle-sub">Auto-set "Full" when beds = 0</div></div><label class="toggle"><input type="checkbox" checked /><span class="toggle-slider"></span></label></div>
+        </div>
+      </div>
+      <button class="topbar-save-btn" style="width:auto;" onclick="saveAllData()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/></svg>
+        Save to Firebase
+      </button>
+    </div>
+
+  </div><!-- /content -->
+</main>
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════
+     🔥 STEP 1 — PASTE YOUR FIREBASE CONFIG HERE
+     Go to: Firebase Console → Project Settings → Your Apps → SDK setup
+══════════════════════════════════════════════════════ -->
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCs1JAdGs_89Xx5TjxbXvXrWmAY95gkGQA",
+  authDomain: "medvyavastha-816b7.firebaseapp.com",
+  projectId: "medvyavastha-816b7",
+  storageBucket: "medvyavastha-816b7.firebasestorage.app",
+  messagingSenderId: "938418248423",
+  appId: "1:938418248423:web:c3df194e01d6d9d788e042"
+};
+
+firebase.auth().onAuthStateChanged((user) => {
+  if (user) {
+    console.log("Auth UID:", user.uid); // 🔍 DEBUG
+
+    currentUser = user;
+
+    // ✅ Start your alert listener here
+    startBookingAlertsListener();
+
+  } else {
+    console.log("No user logged in");
+  }
+});
+
+// ── Initialize Firebase (compat SDK – no bundler needed) ──
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+</script>
+
+<!-- ══════════════════════════════════════════════════════
+     APP LOGIC  (no changes needed below this line)
+══════════════════════════════════════════════════════ -->
+<script>
+
+// ─── DEFAULT RESOURCE TEMPLATE (used when a hospital has NO DB doc yet) ───
+const DEFAULT_RESOURCES = {
+  beds:        { avail:0, total:100, label:"General Beds",       icon:"🛏️" },
+  icu:         { avail:0, total:20,  label:"ICU Beds",           icon:"🏥" },
+  ventilators: { avail:0, total:10,  label:"Ventilators",        icon:"💨" },
+  ot:          { avail:0, total:5,   label:"OT Rooms",           icon:"🔬" },
+  ambulance:   { avail:0, total:4,   label:"Ambulances",         icon:"🚑" },
+  rooms:       { avail:0, total:50,  label:"Private Rooms",      icon:"🚪" },
+  blood:       { avail:0, total:10,  label:"Blood Units (O+)",   icon:"🩸" },
+  oxygen:      { avail:0, total:20,  label:"Oxygen Beds",        icon:"🫁" }
+};
+
+const WARDS_DATA = [
+  { name:"General Medicine", dept:"Ward A", beds:80, avail:32, staff:12 },
+  { name:"Intensive Care Unit", dept:"ICU", beds:40, avail:12, staff:18 },
+  { name:"Cardiology", dept:"Ward B", beds:45, avail:20, staff:8 },
+  { name:"Orthopaedics", dept:"Ward C", beds:35, avail:15, staff:7 },
+  { name:"Paediatrics", dept:"Ward D", beds:30, avail:18, staff:9 },
+  { name:"Gynaecology", dept:"Ward E", beds:25, avail:10, staff:6 },
+  { name:"Neurology", dept:"Ward F", beds:20, avail:7, staff:5 },
+  { name:"Oncology", dept:"Ward G", beds:25, avail:9, staff:7 }
+];
+
+// Live working copy of this hospital's data
+let hospitalData = {
+  name: "Your Hospital",
+  type: "",
+  city: "",
+  address: "",
+  phone: "",
+  email: "",
+  amb: "108",
+  website: "",
+  desc: "",
+  status: "open",
+  resources: JSON.parse(JSON.stringify(DEFAULT_RESOURCES))
+};
+
+let currentUser  = null;
+let changeLog    = [];
+let alerts       = [];
+
+// ══════════════════════════════════════════════
+// AUTH — wait for login, load data, show app
+// ══════════════════════════════════════════════
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    document.getElementById('loadingMsg').textContent = 'Redirecting to login…';
+    setTimeout(() => { window.location.href = 'hospitallogin.html'; }, 1000);
+    return;
+  }
+
+  currentUser = user;
+  document.getElementById('loadingMsg').textContent = 'Loading your dashboard…';
+  document.getElementById('sidebarEmail').textContent = user.email;
+
+  try {
+    // 🔥 Pull hospital doc from Firestore using the user's UID as document ID
+    const snap = await db.collection('hospitals').doc(user.uid).get();
+
+    if (snap.exists) {
+      const d = snap.data();
+      // Merge DB data into hospitalData (keep defaults for missing fields)
+      hospitalData.name    = d.name    || hospitalData.name;
+      hospitalData.type    = d.type    || hospitalData.type;
+      hospitalData.city    = d.city    || hospitalData.city;
+      hospitalData.address = d.address || hospitalData.address;
+      hospitalData.phone   = d.phone   || hospitalData.phone;
+      hospitalData.email   = d.email   || hospitalData.email;
+      hospitalData.amb     = d.amb     || hospitalData.amb;
+      hospitalData.website = d.website || hospitalData.website;
+      hospitalData.desc    = d.desc    || hospitalData.desc;
+      hospitalData.status  = d.status  || hospitalData.status;
+
+      // Merge resources (keep icon/label from defaults, use avail/total from DB)
+      if (d.resources) {
+        Object.keys(hospitalData.resources).forEach(key => {
+          if (d.resources[key]) {
+            hospitalData.resources[key].avail = Number(d.resources[key].avail) || 0;
+            hospitalData.resources[key].total = Number(d.resources[key].total) || hospitalData.resources[key].total;
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Firestore read error:', err);
+    showToast('⚠️ Could not load DB data. Using defaults.');
+  }
+
+  // Render everything
+  initDashboard();
+
+  startBookingAlertsListener();
+
+  // Hide loading, show app
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'flex';
+});
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+function initDashboard() {
+  const now = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  document.getElementById('dateFrom').value = fmt(now);
+  document.getElementById('dateTo').value   = fmt(now);
+
+  applyHospitalToUI();
+  generateAlerts();
+}
+
+function applyHospitalToUI() {
+  const h = hospitalData;
+
+  // Topbar / header
+  document.getElementById('topbarHospitalName').textContent = h.name;
+  document.getElementById('ovHospitalName').textContent     = h.name;
+  const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('ovLastUpdated').textContent = now;
+  document.getElementById('lastSynced').textContent    = now;
+
+  // Status pill
+  const statusEl = document.getElementById('statusLabel');
+  const dot       = document.getElementById('statusDot');
+  if (h.status === 'open')    { statusEl.textContent = 'Emergency Open';      dot.className = 'pulse-dot'; }
+  else if (h.status === 'limited') { statusEl.textContent = 'Limited Availability'; dot.className = 'pulse-dot yellow'; }
+  else                        { statusEl.textContent = 'Full / No Vacancy';   dot.className = 'pulse-dot red'; }
+
+  // Settings form
+  document.getElementById('set_name').value    = h.name;
+  document.getElementById('set_city').value    = h.city;
+  document.getElementById('set_phone').value   = h.phone;
+  document.getElementById('set_address').value = h.address;
+  document.getElementById('set_email').value   = h.email;
+  document.getElementById('set_amb').value     = h.amb;
+  document.getElementById('set_website').value = h.website;
+  document.getElementById('set_desc').value    = h.desc;
+  // Set type dropdown
+  const typeEl = document.getElementById('set_type');
+  for (let o of typeEl.options) { if (o.value === h.type || o.text === h.type) o.selected = true; }
+  // Set status dropdown
+  document.getElementById('set_status').value = h.status || 'open';
+
+  renderStats();
+  renderSparklines();
+  renderOverviewTable();
+  renderResourceGrid();
+  renderOccupancyTable();
+  renderWards();
+  renderLog();
+  renderAlerts();
+  renderAlertPreview();
+}
+
+// ══════════════════════════════════════════════
+// SAVE TO FIREBASE 🔥
+// ══════════════════════════════════════════════
+async function saveAllData() {
+  if (!currentUser) { showToast('❌ Not logged in'); return; }
+
+  // Collect settings form values into hospitalData
+  hospitalData.name    = document.getElementById('set_name').value    || hospitalData.name;
+  hospitalData.city    = document.getElementById('set_city').value;
+  hospitalData.phone   = document.getElementById('set_phone').value;
+  hospitalData.address = document.getElementById('set_address').value;
+  hospitalData.email   = document.getElementById('set_email').value;
+  hospitalData.amb     = document.getElementById('set_amb').value;
+  hospitalData.website = document.getElementById('set_website').value;
+  hospitalData.desc    = document.getElementById('set_desc').value;
+  hospitalData.status  = document.getElementById('set_status').value;
+  hospitalData.type    = document.getElementById('set_type').value;
+
+  // Collect resource counters from UI
+  Object.keys(hospitalData.resources).forEach(key => {
+    const availEl = document.getElementById('res_' + key);
+    const totEl   = document.getElementById('tot_' + key);
+    if (availEl) hospitalData.resources[key].avail = parseInt(availEl.value) || 0;
+    if (totEl)   hospitalData.resources[key].total = parseInt(totEl.value)   || 1;
+  });
+
+  // Build the Firestore payload
+  // We store only serializable data (no icon labels – those are UI constants)
+  const payload = {
+    name:    hospitalData.name,
+    type:    hospitalData.type,
+    city:    hospitalData.city,
+    address: hospitalData.address,
+    phone:   hospitalData.phone,
+    email:   hospitalData.email,
+    amb:     hospitalData.amb,
+    website: hospitalData.website,
+    desc:    hospitalData.desc,
+    status:  hospitalData.status,
+    resources: {},
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  Object.keys(hospitalData.resources).forEach(key => {
+    payload.resources[key] = {
+      avail: hospitalData.resources[key].avail,
+      total: hospitalData.resources[key].total
+    };
+  });
+
+  try {
+    // 🔥 setDoc with merge:true — creates or updates, never overwrites unrelated fields
+    await db.collection('hospitals').doc(currentUser.uid).set(payload, { merge: true });
+
+    markSaved();
+    applyHospitalToUI(); // refresh all widgets with new values
+    showToast('✅ Saved to Firebase!');
+  } catch (err) {
+    console.error('Save error:', err);
+    showToast('❌ Save failed: ' + err.message);
+  }
+}
+
+// ══════════════════════════════════════════════
+// LOGOUT
+// ══════════════════════════════════════════════
+async function handleLogout() {
+  await auth.signOut();
+  window.location.href = 'hospitallogin.html';
+}
+
+// ══════════════════════════════════════════════
+// STATS ROW
+// ══════════════════════════════════════════════
+function renderStats() {
+  const r = hospitalData.resources;
+  const occ = r.beds.total ? Math.round((1 - r.beds.avail / r.beds.total) * 100) : 0;
+  const stats = [
+    { label:'General Beds Available', val:r.beds.avail,        total:r.beds.total,        icon:'🛏️', color:'blue',   change:`${occ}% occupied`,                                   dir: occ > 70 ? 'warn' : 'up' },
+    { label:'ICU Free',               val:r.icu.avail,         total:r.icu.total,         icon:'🏥', color:'green',  change: r.icu.avail < 3 ? '⚠ Critical' : r.icu.avail < 6 ? 'Low' : 'Adequate', dir: r.icu.avail < 3 ? 'down' : r.icu.avail < 6 ? 'warn' : 'up' },
+    { label:'Ventilators Available',  val:r.ventilators.avail, total:r.ventilators.total, icon:'💨', color:'orange', change:`${r.ventilators.total - r.ventilators.avail} in use`, dir:'warn' },
+    { label:'OT Rooms Free',          val:r.ot.avail,          total:r.ot.total,          icon:'🔬', color:'red',    change:`${r.ot.total} total OT rooms`,                       dir:'up' }
+  ];
+  document.getElementById('statsRow').innerHTML = stats.map(s => `
+    <div class="stat-card ${s.color}">
+      <div class="stat-icon ${s.color}-bg">${s.icon}</div>
+      <div class="stat-val">${s.val}</div>
+      <div class="stat-lbl">${s.label} <span style="color:var(--muted);font-size:0.7rem;">/ ${s.total}</span></div>
+      <div class="stat-change ${s.dir}">${s.dir==='up'?'↑':s.dir==='down'?'↓':'⚡'} ${s.change}</div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════
+// SPARKLINES
+// ══════════════════════════════════════════════
+function renderSparklines() {
+  const r = hospitalData.resources;
+  const bedOcc = r.beds.total ? Math.round((1 - r.beds.avail / r.beds.total) * 100) : 0;
+  const icuOcc = r.icu.total  ? Math.round((1 - r.icu.avail  / r.icu.total)  * 100) : 0;
+  const items = [
+    { label:'Bed Occupancy',    val: bedOcc + '%', data:[62,68,71,65,72,70,bedOcc], color:'var(--blue-bright)' },
+    { label:'ICU Utilisation',  val: icuOcc + '%', data:[55,60,72,68,75,70,icuOcc], color:'var(--cyan)' },
+    { label:'Admissions Today', val:'—',           data:[8,12,10,15,11,13,14],       color:'var(--green)' }
+  ];
+  document.getElementById('sparklineRow').innerHTML = items.map(item => `
+    <div class="sparkline-card">
+      <div class="sparkline-top">
+        <div><div class="sparkline-val">${item.val}</div><div class="sparkline-lbl">${item.label}</div></div>
+      </div>
+      ${makeSVGSparkline(item.data, item.color)}
+    </div>`).join('');
+}
+function makeSVGSparkline(data, color) {
+  const w=200,h=44,pad=4;
+  const minV=Math.min(...data)-5,maxV=Math.max(...data)+5;
+  const scX=i=>pad+(i/(data.length-1))*(w-2*pad);
+  const scY=v=>h-pad-((v-minV)/(maxV-minV))*(h-2*pad);
+  const pts=data.map((v,i)=>`${scX(i)},${scY(v)}`).join(' ');
+  const fillPts=`${scX(0)},${h} ${pts} ${scX(data.length-1)},${h}`;
+  const id='sg'+color.replace(/[^a-z]/gi,'');
+  return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${fillPts}" fill="url(#${id})" />
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
+// ══════════════════════════════════════════════
+// OVERVIEW TABLE
+// ══════════════════════════════════════════════
+function renderOverviewTable() {
+  const r = hospitalData.resources;
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const dateStr = now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  document.getElementById('overviewTableBody').innerHTML = Object.entries(r).map(([key,res]) => {
+    const occ = res.total ? Math.round((1 - res.avail / res.total) * 100) : 0;
+    const badge = occ >= 85 ? 'badge-red' : occ >= 60 ? 'badge-yellow' : 'badge-green';
+    const badgeTxt = occ >= 85 ? 'Critical' : occ >= 60 ? 'Limited' : 'Available';
+    return `<tr>
+      <td><div class="td-name">${res.icon} ${res.label}</div></td>
+      <td><strong>${res.avail}</strong></td>
+      <td>${res.total}</td>
+      <td><div style="display:flex;align-items:center;gap:8px;">
+        <div class="occ-mini-bar"><div class="occ-mini-fill" style="width:${occ}%;background:${occ>=85?'var(--red)':occ>=60?'var(--orange)':'var(--green)'}"></div></div>
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--muted)">${occ}%</span>
+      </div></td>
+      <td><span class="badge ${badge}">${badgeTxt}</span></td>
+      <td><span class="log-date">${dateStr} ${timeStr}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// RESOURCE GRID (EDITOR)
+// ══════════════════════════════════════════════
+function renderResourceGrid() {
+  const r = hospitalData.resources;
+  document.getElementById('resourceGrid').innerHTML = Object.entries(r).map(([key,res]) => {
+    const occ = res.total ? Math.round((1 - res.avail / res.total) * 100) : 0;
+    const occClass = occ >= 85 ? 'high' : occ >= 60 ? 'mid' : 'low';
+    const dotClass = occ >= 85 ? 'red'  : occ >= 60 ? 'yellow' : 'green';
+    return `<div class="resource-card">
+      <div class="res-header">
+        <div class="res-icon-name">
+          <span class="res-icon">${res.icon}</span>
+          <div><div class="res-name">${res.label}</div><div class="res-sub">Total: ${res.total}</div></div>
+        </div>
+        <div class="res-status-dot ${dotClass}"></div>
+      </div>
+      <div class="occ-bar-wrap">
+        <div class="occ-bar-labels"><span>Occupied: ${res.total - res.avail}</span><span>${occ}%</span></div>
+        <div class="occ-bar-track"><div class="occ-bar-fill ${occClass}" style="width:${occ}%" id="bar_${key}"></div></div>
+      </div>
+      <div class="counter-row">
+        <span class="counter-label">Available now:</span>
+        <div class="counter-wrap">
+          <button class="counter-btn" onclick="adjustRes('${key}',-1)">−</button>
+          <input class="counter-val" type="number" id="res_${key}" value="${res.avail}" min="0" max="${res.total}" oninput="onResInput('${key}',this.value)" />
+          <button class="counter-btn" onclick="adjustRes('${key}',1)">+</button>
+        </div>
+      </div>
+      <div class="counter-row" style="margin-top:8px;">
+        <span class="counter-label">Total capacity:</span>
+        <div class="counter-wrap">
+          <button class="counter-btn" onclick="adjustTotal('${key}',-1)">−</button>
+          <input class="counter-val" type="number" id="tot_${key}" value="${res.total}" min="1" oninput="onTotalInput('${key}',this.value)" />
+          <button class="counter-btn" onclick="adjustTotal('${key}',1)">+</button>
+        </div>
+      </div>
+      <div class="res-note">Session update — tap "Save to DB" to persist</div>
+    </div>`;
+  }).join('');
+}
+function adjustRes(key, delta) {
+  const r = hospitalData.resources[key];
+  const oldVal = r.avail;
+  const newVal = Math.max(0, Math.min(r.total, r.avail + delta));
+  if (newVal === oldVal) return;
+  addLog(`Updated ${r.label}`, r.label, oldVal, newVal);
+  r.avail = newVal;
+  document.getElementById('res_' + key).value = newVal;
+  updateBar(key);
+  markUnsaved();
+  checkAlertThreshold(key, newVal);
+}
+function adjustTotal(key, delta) {
+  const r = hospitalData.resources[key];
+  const newTotal = Math.max(r.avail, r.total + delta);
+  r.total = newTotal;
+  document.getElementById('tot_' + key).value = newTotal;
+  updateBar(key);
+  markUnsaved();
+}
+function onResInput(key, val) {
+  const r = hospitalData.resources[key];
+  const newVal = Math.max(0, Math.min(r.total, parseInt(val) || 0));
+  addLog(`Updated ${r.label}`, r.label, r.avail, newVal);
+  r.avail = newVal;
+  updateBar(key);
+  markUnsaved();
+}
+function onTotalInput(key, val) {
+  hospitalData.resources[key].total = Math.max(1, parseInt(val) || 1);
+  updateBar(key);
+  markUnsaved();
+}
+function updateBar(key) {
+  const r = hospitalData.resources[key];
+  const occ = r.total ? Math.round((1 - r.avail / r.total) * 100) : 0;
+  const bar = document.getElementById('bar_' + key);
+  if (bar) {
+    bar.style.width = occ + '%';
+    bar.className = 'occ-bar-fill ' + (occ >= 85 ? 'high' : occ >= 60 ? 'mid' : 'low');
+  }
+}
+
+function startBookingAlertsListener() {
+  if (!currentUser) return;
+
+  db.collection("hospitals")
+  .doc(currentUser.uid)
+  .collection("bookingAlerts")
+  .orderBy("createdAt", "desc")
+  .onSnapshot((snapshot) => {
+
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === "added") {
+        const data = change.doc.data();
+
+        alerts.unshift({
+          type: "info",
+          icon: "🧑‍⚕️",
+          title: "New Patient Booking",
+          sub: `${data.patientName} • ${data.seatType}`
+        });
+
+        renderAlerts();
+        renderAlertPreview();
+
+        const badge = document.getElementById('alertBadge');
+        badge.textContent = alerts.length;
+        badge.style.display = '';
+      }
+    });
+
+  });
+}
+
+// ══════════════════════════════════════════════
+// OCCUPANCY TABLE
+// ══════════════════════════════════════════════
+function renderOccupancyTable() {
+  const r = hospitalData.resources;
+  document.getElementById('occupancyTableBody').innerHTML = Object.entries(r).map(([key,res]) => {
+    const occupied = res.total - res.avail;
+    const occ = res.total ? Math.round((occupied / res.total) * 100) : 0;
+    const badge = occ >= 85 ? 'badge-red' : occ >= 60 ? 'badge-yellow' : 'badge-green';
+    const badgeTxt = occ >= 85 ? 'Critical' : occ >= 60 ? 'Limited' : 'Available';
+    return `<tr>
+      <td><div class="td-name">${res.icon} ${res.label}</div></td>
+      <td><strong>${res.avail}</strong></td>
+      <td>${occupied}</td>
+      <td>${res.total}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="occ-mini-bar"><div class="occ-mini-fill" style="width:${occ}%;background:${occ>=85?'var(--red)':occ>=60?'var(--orange)':'var(--green)'}"></div></div>
+          ${occ}%
+        </div>
+      </td>
+      <td><span class="badge ${badge}">${badgeTxt}</span></td>
+      <td><input class="inline-num-input" type="number" value="${res.avail}" min="0" max="${res.total}" onchange="adjustResFromTable('${key}',this.value)" /></td>
+    </tr>`;
+  }).join('');
+}
+function adjustResFromTable(key, val) {
+  const r = hospitalData.resources[key];
+  r.avail = Math.max(0, Math.min(r.total, parseInt(val) || 0));
+  markUnsaved();
+  // Also update resource grid input if visible
+  const el = document.getElementById('res_' + key);
+  if (el) el.value = r.avail;
+  updateBar(key);
+}
+
+// ══════════════════════════════════════════════
+// WARDS
+// ══════════════════════════════════════════════
+function renderWards() {
+  document.getElementById('wardGrid').innerHTML = WARDS_DATA.map(w => {
+    const occ = Math.round(((w.beds - w.avail) / w.beds) * 100);
+    const barColor = occ >= 85 ? 'var(--red)' : occ >= 60 ? 'var(--orange)' : 'var(--green)';
+    const badge = occ >= 85 ? 'badge-red' : occ >= 60 ? 'badge-yellow' : 'badge-green';
+    return `<div class="ward-card">
+      <div class="ward-top">
+        <div><div class="ward-name">${w.name}</div><div class="ward-dept">${w.dept}</div></div>
+        <span class="badge ${badge}">${occ >= 85 ? 'Critical' : occ >= 60 ? 'Limited' : 'Available'}</span>
+      </div>
+      <div class="ward-nums">
+        <div class="ward-num-item"><div class="ward-num-val" style="color:var(--green)">${w.avail}</div><div class="ward-num-lbl">Available</div></div>
+        <div class="ward-num-item"><div class="ward-num-val" style="color:var(--orange)">${w.beds - w.avail}</div><div class="ward-num-lbl">Occupied</div></div>
+        <div class="ward-num-item"><div class="ward-num-val">${w.beds}</div><div class="ward-num-lbl">Total</div></div>
+      </div>
+      <div class="ward-bar"><div class="ward-bar-fill" style="width:${occ}%;background:${barColor}"></div></div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:8px;">Staff on duty: ${w.staff}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// LOG
+// ══════════════════════════════════════════════
+function addLog(action, resource, before, after) {
+  changeLog.unshift({ ts: new Date(), action, resource, before, after });
+  renderLog();
+}
+function renderLog() {
+  const tbody = document.getElementById('logTableBody');
+  document.getElementById('logCount').textContent = `${changeLog.length} entries`;
+  if (!changeLog.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">No changes this session</td></tr>';
+    return;
+  }
+  tbody.innerHTML = changeLog.map(e => `<tr>
+    <td class="log-date">${e.ts.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</td>
+    <td>${e.action}</td>
+    <td>${e.resource}</td>
+    <td style="color:var(--muted)">${e.before}</td>
+    <td style="color:var(--green)">${e.after}</td>
+  </tr>`).join('');
+}
+function clearLog() { changeLog = []; renderLog(); showToast('🗑 Log cleared'); }
+
+// ══════════════════════════════════════════════
+// ALERTS
+// ══════════════════════════════════════════════
+function generateAlerts() {
+  const r = hospitalData.resources;
+  const thrBeds = parseInt(document.getElementById('thr_beds').value) || 5;
+  const thrIcu  = parseInt(document.getElementById('thr_icu').value)  || 2;
+  const thrVent = parseInt(document.getElementById('thr_vent').value) || 2;
+  const thrOt   = parseInt(document.getElementById('thr_ot').value)   || 1;
+  alerts = [];
+  if (r.beds.avail        <= thrBeds) alerts.push({ type:'critical', icon:'🛏️', title:`Low General Beds — Only ${r.beds.avail} available`,        sub:`Below critical threshold of ${thrBeds}` });
+  if (r.icu.avail         <= thrIcu)  alerts.push({ type:'critical', icon:'🏥', title:`ICU Critical — ${r.icu.avail} beds remaining`,              sub:`Below threshold of ${thrIcu}` });
+  if (r.ventilators.avail <= thrVent) alerts.push({ type:'warning',  icon:'💨', title:`Ventilator Warning — ${r.ventilators.avail} available`,     sub:`Approaching minimum of ${thrVent}` });
+  if (r.ot.avail          <= thrOt)   alerts.push({ type:'warning',  icon:'🔬', title:`OT Rooms Low — ${r.ot.avail} free`,                         sub:`Below warning level of ${thrOt}` });
+  renderAlerts();
+  renderAlertPreview();
+  // Update badge
+  const badge = document.getElementById('alertBadge');
+  if (alerts.length) { badge.textContent = alerts.length; badge.style.display = ''; }
+  else               { badge.style.display = 'none'; }
+}
+function checkAlertThreshold(key, val) {
+  const thrMap = { beds:'thr_beds', icu:'thr_icu', ventilators:'thr_vent', ot:'thr_ot' };
+  if (thrMap[key]) {
+    const thr = parseInt(document.getElementById(thrMap[key]).value) || 0;
+    if (val <= thr) showToast(`⚠️ ${hospitalData.resources[key].label} below threshold!`);
+  }
+  generateAlerts();
+}
+function renderAlerts() {
+  const el = document.getElementById('alertsContainer');
+  if (!alerts.length) {
+    el.innerHTML = '<div class="alert-item info"><div class="alert-icon-wrap info">✅</div><div class="alert-text"><div class="alert-title">No active alerts</div><div class="alert-sub">All resources are within safe thresholds.</div></div></div>';
+    return;
+  }
+  el.innerHTML = alerts.map((a, i) => `
+    <div class="alert-item ${a.type}">
+      <div class="alert-icon-wrap ${a.type}">${a.icon}</div>
+      <div class="alert-text">
+        <div class="alert-title">${a.title}</div>
+        <div class="alert-sub">${a.sub}</div>
+      </div>
+      <button class="alert-dismiss" onclick="dismissAlert(${i})">✕</button>
+    </div>`).join('');
+}
+function renderAlertPreview() {
+  const el = document.getElementById('alertPreview');
+  if (!alerts.length) {
+    el.innerHTML = '<div class="alert-item info"><div class="alert-icon-wrap info">✅</div><div class="alert-text"><div class="alert-title">All clear</div><div class="alert-sub">No active alerts.</div></div></div>';
+    return;
+  }
+  el.innerHTML = alerts.slice(0, 3).map((a, i) => `
+    <div class="alert-item ${a.type}">
+      <div class="alert-icon-wrap ${a.type}">${a.icon}</div>
+      <div class="alert-text">
+        <div class="alert-title">${a.title}</div>
+        <div class="alert-sub">${a.sub}</div>
+      </div>
+      <button class="alert-dismiss" onclick="dismissAlert(${i})">✕</button>
+    </div>`).join('');
+}
+function dismissAlert(i) {
+  alerts.splice(i, 1);
+  renderAlerts();
+  renderAlertPreview();
+  const badge = document.getElementById('alertBadge');
+  if (alerts.length) { badge.textContent = alerts.length; badge.style.display = ''; }
+  else               { badge.style.display = 'none'; }
+  showToast('Alert dismissed');
+}
+function dismissAllAlerts() {
+  alerts = [];
+  renderAlerts();
+  renderAlertPreview();
+  document.getElementById('alertBadge').style.display = 'none';
+  showToast('✅ All alerts dismissed');
+}
+
+// ══════════════════════════════════════════════
+// UNSAVED / SAVED STATE
+// ══════════════════════════════════════════════
+function markUnsaved() {
+  document.getElementById('unsavedChip').classList.add('visible');
+  const btn = document.getElementById('saveBtn');
+  btn.classList.remove('saved');
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/></svg> Save to DB`;
+}
+function markSaved() {
+  document.getElementById('unsavedChip').classList.remove('visible');
+  const btn = document.getElementById('saveBtn');
+  btn.classList.add('saved');
+  btn.innerHTML = `✓ Saved`;
+  const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('lastSynced').textContent = now;
+  setTimeout(() => {
+    btn.classList.remove('saved');
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/></svg> Save to DB`;
+  }, 3000);
+}
+
+// ══════════════════════════════════════════════
+// NAV TABS
+// ══════════════════════════════════════════════
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  const tabMap = { overview:0, resources:1, occupancy:2, wards:3, log:4, alerts:5, settings:6 };
+  const navItems = document.querySelectorAll('.nav-item');
+  if (navItems[tabMap[name]]) navItems[tabMap[name]].classList.add('active');
+  if (name === 'log')      renderLog();
+  if (name === 'alerts')   renderAlerts();
+  if (name === 'overview') renderAlertPreview();
+}
+
+// ══════════════════════════════════════════════
+// DATE RANGE
+// ══════════════════════════════════════════════
+function setDateRange(btn, range) {
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const now = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  if (range === 'today') {
+    document.getElementById('dateFrom').value = fmt(now);
+    document.getElementById('dateTo').value   = fmt(now);
+  } else if (range === 'week') {
+    const start = new Date(now); start.setDate(now.getDate() - 6);
+    document.getElementById('dateFrom').value = fmt(start);
+    document.getElementById('dateTo').value   = fmt(now);
+  } else {
+    const start = new Date(now); start.setDate(1);
+    document.getElementById('dateFrom').value = fmt(start);
+    document.getElementById('dateTo').value   = fmt(now);
+  }
+  showToast('📅 Date range updated');
+}
+function applyCustomDate() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  if (!from || !to) { showToast('⚠️ Please select both dates'); return; }
+  showToast(`📅 Showing ${from} to ${to}`);
+}
+
+// ══════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>

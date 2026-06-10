@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hospital Login — MedVyavastha</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+<style>
+  :root {
+    --blue-900: #0a1628;
+    --blue-800: #0f2044;
+    --blue-700: #1a3a6b;
+    --blue-600: #1e4d8c;
+    --blue-500: #2563eb;
+    --blue-400: #3b82f6;
+    --blue-300: #60a5fa;
+    --blue-200: #bfdbfe;
+    --blue-100: #dbeafe;
+    --blue-50:  #eff6ff;
+    --white:    #ffffff;
+    --gray-50:  #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-600: #475569;
+    --gray-800: #1e293b;
+    --green:    #10b981;
+    --orange:   #f59e0b;
+    --red:      #ef4444;
+    --cyan:     #06b6d4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-800);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--blue-100);
+    padding: 0 2rem; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1.2rem;
+    color: var(--blue-700); text-decoration: none;
+  }
+  .nav-logo-icon {
+    width: 36px; height: 36px; background: var(--blue-500);
+    border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  }
+  .nav-logo-icon svg { width: 20px; height: 20px; fill: white; }
+  .nav-links { display: flex; gap: 2rem; align-items: center; }
+  .nav-links a {
+    text-decoration: none; color: var(--gray-600);
+    font-size: 0.9rem; font-weight: 500; transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--blue-500); }
+  .nav-cta { display: flex; gap: 10px; }
+  .btn-outline {
+    padding: 8px 18px; border-radius: 8px;
+    border: 1.5px solid var(--blue-400); color: var(--blue-500);
+    background: transparent; font-size: 0.875rem; font-weight: 500;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+    text-decoration: none; display: inline-flex; align-items: center;
+  }
+  .btn-outline:hover { background: var(--blue-50); }
+  .btn-primary {
+    padding: 8px 18px; border-radius: 8px; border: none;
+    background: var(--blue-500); color: white; font-size: 0.875rem;
+    font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary:hover { background: var(--blue-600); transform: translateY(-1px); }
+
+  /* ── PAGE LAYOUT ── */
+  .page-wrapper {
+  display: grid;                
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  min-height: 100vh;
+}
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    background: linear-gradient(155deg, var(--blue-900) 0%, var(--blue-700) 55%, var(--blue-600) 100%);
+    padding: 60px 56px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+  }
+
+  /* Decorative blobs */
+  .left-panel::before {
+    content: '';
+    position: absolute; top: -120px; right: -120px;
+    width: 380px; height: 380px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(59,130,246,0.3) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .left-panel::after {
+    content: '';
+    position: absolute; bottom: -100px; left: -100px;
+    width: 340px; height: 340px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(6,182,212,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Cross pattern overlay */
+  .cross-pattern {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.04;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 38px, white 38px, white 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 38px, white 38px, white 40px);
+  }
+
+  .left-top { position: relative; z-index: 1; }
+
+  .left-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--blue-200); font-size: 0.75rem; font-weight: 600;
+    padding: 6px 14px; border-radius: 100px;
+    margin-bottom: 2rem; letter-spacing: 0.06em; text-transform: uppercase;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .left-panel h1 {
+    font-family: 'Sora', sans-serif;
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    font-weight: 800; color: white; line-height: 1.2;
+    margin-bottom: 1rem;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+  .left-panel h1 span { color: var(--blue-300); }
+
+  .left-panel > .left-top > p {
+    color: rgba(255,255,255,0.65);
+    font-size: 0.95rem; line-height: 1.7; max-width: 380px;
+    margin-bottom: 2.5rem;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  /* Feature pills */
+  .feature-list {
+    display: flex; flex-direction: column; gap: 14px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+  .feature-pill {
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 14px 18px;
+    transition: background 0.2s;
+  }
+  .feature-pill:hover { background: rgba(255,255,255,0.13); }
+  .feature-pill-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; flex-shrink: 0;
+  }
+  .feature-pill-text h5 {
+    font-size: 0.88rem; font-weight: 600; color: white; margin-bottom: 2px;
+  }
+  .feature-pill-text p { font-size: 0.76rem; color: rgba(255,255,255,0.5); }
+
+  /* Stats row */
+  .left-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; position: relative; z-index: 1;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+  .left-stat {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 16px 12px; text-align: center;
+  }
+  .left-stat-num {
+    font-family: 'Sora', sans-serif;
+    font-size: 1.4rem; font-weight: 800; color: white;
+  }
+  .left-stat-lbl { font-size: 0.7rem; color: rgba(255,255,255,0.45); margin-top: 3px; }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel {
+    display: flex; align-items: center; justify-content: center;
+    padding: 48px 56px;
+    background: var(--gray-50);
+  }
+
+  .login-card {
+    width: 100%; max-width: 460px;
+    animation: fadeUp 0.55s 0.1s ease both;
+  }
+
+  /* Card header */
+  .login-card-header { margin-bottom: 32px; }
+  .login-card-header h2 {
+    font-family: 'Sora', sans-serif;
+    font-size: 1.75rem; font-weight: 800; color: var(--blue-900);
+    margin-bottom: 6px;
+  }
+  .login-card-header p { font-size: 0.9rem; color: var(--gray-600); line-height: 1.5; }
+
+  /* Login tabs */
+  .login-tabs {
+    display: flex; background: var(--gray-100);
+    border-radius: 10px; padding: 4px; margin-bottom: 28px;
+    border: 1px solid var(--gray-200);
+  }
+  .login-tab {
+    flex: 1; padding: 9px 12px; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    text-align: center; transition: all 0.2s;
+    color: var(--gray-400); background: transparent; border: none;
+    font-family: 'DM Sans', sans-serif; display: flex; align-items: center;
+    justify-content: center; gap: 6px;
+  }
+  .login-tab.active {
+    background: white; color: var(--blue-700);
+    box-shadow: 0 1px 8px rgba(37,99,235,0.12);
+  }
+
+  /* Form groups */
+  .form-group { margin-bottom: 18px; }
+  .form-label {
+    font-size: 0.82rem; font-weight: 600; color: var(--gray-600);
+    margin-bottom: 7px; display: flex; align-items: center;
+    justify-content: space-between;
+  }
+  .form-label a { font-weight: 500; color: var(--blue-500); text-decoration: none; font-size: 0.8rem; }
+  .form-label a:hover { text-decoration: underline; }
+
+  .input-wrap { position: relative; }
+  .input-icon {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    width: 18px; height: 18px; color: var(--gray-400); pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .input-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .form-input {
+    width: 100%; padding: 11px 14px 11px 42px;
+    border-radius: 9px; border: 1.5px solid var(--gray-200);
+    outline: none; font-family: 'DM Sans', sans-serif;
+    font-size: 0.92rem; color: var(--gray-800);
+    transition: all 0.2s; background: white;
+  }
+  .form-input:focus {
+    border-color: var(--blue-400);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  }
+  .form-input::placeholder { color: var(--gray-300); }
+  .form-input.error { border-color: var(--red); box-shadow: 0 0 0 3px rgba(239,68,68,0.08); }
+
+  /* Password toggle */
+  .pass-toggle {
+    position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+    cursor: pointer; color: var(--gray-400); background: none; border: none;
+    padding: 4px; display: flex; align-items: center;
+    transition: color 0.2s;
+  }
+  .pass-toggle:hover { color: var(--blue-500); }
+  .pass-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Error message */
+  .field-error {
+    font-size: 0.76rem; color: var(--red);
+    margin-top: 5px; display: none; align-items: center; gap: 4px;
+  }
+  .field-error.show { display: flex; }
+
+  /* Reg ID field note */
+  .field-note {
+    font-size: 0.75rem; color: var(--gray-400); margin-top: 5px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .field-note svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+
+  /* Remember me */
+  .remember-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .remember-check {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+  }
+  .remember-check input { accent-color: var(--blue-500); width: 16px; height: 16px; cursor: pointer; }
+  .remember-check label { font-size: 0.85rem; color: var(--gray-600); cursor: pointer; }
+
+  /* Submit button */
+  .submit-btn {
+    width: 100%; padding: 13px;
+    border-radius: 10px; border: none;
+    background: var(--blue-500); color: white;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all 0.25s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    position: relative; overflow: hidden;
+  }
+  .submit-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.08) 100%);
+  }
+  .submit-btn:hover {
+    background: var(--blue-600); transform: translateY(-1px);
+    box-shadow: 0 10px 28px rgba(37,99,235,0.3);
+  }
+  .submit-btn:active { transform: translateY(0); }
+  .submit-btn svg { width: 18px; height: 18px; fill: none; stroke: white; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .submit-btn.loading { pointer-events: none; opacity: 0.8; }
+
+  /* Divider */
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 22px 0; color: var(--gray-300); font-size: 0.78rem;
+  }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--gray-200); }
+
+  /* Register link */
+  .register-link {
+    text-align: center; font-size: 0.86rem; color: var(--gray-600);
+    margin-top: 20px;
+  }
+  .register-link a { color: var(--blue-500); font-weight: 600; text-decoration: none; }
+  .register-link a:hover { text-decoration: underline; }
+
+  /* Help row */
+  .help-row {
+    margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--gray-100);
+    display: flex; gap: 10px;
+  }
+  .help-chip {
+    flex: 1; padding: 10px; border-radius: 9px;
+    border: 1.5px solid var(--gray-200); background: white;
+    text-align: center; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s; text-decoration: none; display: block;
+  }
+  .help-chip:hover { border-color: var(--blue-300); background: var(--blue-50); }
+  .help-chip-icon { font-size: 1.1rem; margin-bottom: 3px; }
+  .help-chip-text { font-size: 0.73rem; font-weight: 500; color: var(--gray-600); }
+
+  /* ── ALERT BOX ── */
+  .alert-box {
+    border-radius: 10px; padding: 12px 14px;
+    font-size: 0.83rem; margin-bottom: 18px;
+    display: none; align-items: flex-start; gap: 10px; line-height: 1.5;
+  }
+  .alert-box.show { display: flex; }
+  .alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .alert-icon { flex-shrink: 0; font-size: 1rem; margin-top: 1px; }
+
+  /* ── SUCCESS PANEL ── */
+  .success-panel {
+    display: none; text-align: center; padding: 20px 0;
+    animation: fadeUp 0.4s ease both;
+  }
+  .success-panel.show { display: block; }
+  .success-icon-wrap {
+    width: 76px; height: 76px; border-radius: 50%;
+    background: #d1fae5; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 18px; font-size: 2.2rem;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  }
+  .success-panel h3 {
+    font-family: 'Sora', sans-serif; font-size: 1.4rem; font-weight: 800;
+    color: var(--blue-900); margin-bottom: 8px;
+  }
+  .success-panel p { font-size: 0.88rem; color: var(--gray-600); line-height: 1.6; margin-bottom: 22px; }
+  .hospital-name-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--blue-50); border: 1px solid var(--blue-200);
+    border-radius: 100px; padding: 7px 16px;
+    font-size: 0.85rem; font-weight: 600; color: var(--blue-700);
+    margin-bottom: 22px;
+  }
+
+  /* ── FORGOT PASSWORD VIEW ── */
+  .forgot-panel { display: none; }
+  .forgot-panel.show { display: block; animation: fadeUp 0.4s ease both; }
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--gray-400); font-size: 0.82rem; cursor: pointer;
+    background: none; border: none; font-family: 'DM Sans', sans-serif;
+    margin-bottom: 20px; padding: 0; transition: color 0.2s;
+  }
+  .back-link:hover { color: var(--blue-500); }
+  .back-link svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; }
+
+  /* ── FLOATING LABELS STATE INDICATOR ── */
+  .input-wrap .strength-bar {
+    height: 3px; border-radius: 100px; margin-top: 6px;
+    background: var(--gray-100); overflow: hidden; display: none;
+  }
+  .input-wrap .strength-fill {
+    height: 100%; border-radius: 100px; transition: width 0.3s, background 0.3s;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--blue-900); color: white;
+    padding: 13px 22px; border-radius: 12px;
+    font-size: 0.88rem; font-weight: 500; z-index: 999;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    transition: transform 0.35s ease;
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── SECURITY BADGE ── */
+  .security-note {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: var(--green);
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    border-radius: 9px; margin-bottom: 20px;
+  }
+  .security-note svg { width: 15px; height: 15px; stroke: var(--green); fill: none; stroke-width: 2.5; flex-shrink: 0; }
+  .security-note span { font-size: 0.78rem; color: #166534; font-weight: 500; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .page-wrapper { grid-template-columns: 1fr; }
+    .left-panel { display: none; }
+    .right-panel { padding: 40px 24px; min-height: calc(100vh - 112px); }
+  }
+  @media (max-width: 480px) {
+    .right-panel { padding: 28px 18px; }
+    .login-card-header h2 { font-size: 1.5rem; }
+  }
+  @media (max-width: 640px) { .nav-links { display: none; } }
+  /* 🔥 MATCH COLLEGE1 DESIGN */
+
+/* Remove all top gaps */
+body {
+  margin: 0;
+  padding: 0;
+}
+
+
+/* Left panel (background side) */
+.left-panel {
+  height: 100vh;
+  padding-top: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Right panel (login side) */
+.right-panel {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Login card */
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* Fix header overlap issue */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Remove unwanted section spacing */
+section {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+.left-panel,
+.right-panel {
+  width: 100%;
+  min-height: 100vh;
+}
+</style>
+</head>
+<body>
+<script src="firebase-config.js"></script>
+
+<script>
+   // Now you can use "db" and "auth" in your code!
+</script>
+<!-- Nav -->
+<nav>
+  <div class="nav-logo" onclick="window.location.href='hospital-home.html'" style="cursor:pointer;">
+    <div class="nav-logo-icon">
+      <svg viewBox="0 0 24 24"><rect x="11" y="4" width="2" height="5" rx="1"/><rect x="11" y="15" width="2" height="5" rx="1"/><rect x="4" y="11" width="5" height="2" rx="1"/><rect x="15" y="11" width="5" height="2" rx="1"/></svg>
+    </div>
+    MedVyavastha
+  </div>
+  <div class="nav-links">
+    <a href="college1 new.html">Home</a>
+    <a href="about.html">About Us</a>
+    <a href="findhospital.html">Find Hospitals</a>
+    <a href="contact us.html">Contact Us</a>
+  </div>
+
+  <div class="nav-cta">
+    <button class="btn-outline" onclick="window.location.href='hospitallogin.html'">
+      Login
+    </button>
+    <button class="btn-primary" onclick="window.location.href='register.html'">
+      Register Hospital
+    </button>
+  </div>
+</nav>
+
+<!-- ── MAIN PAGE ── -->
+<div class="page-wrapper">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel">
+    <div class="cross-pattern"></div>
+
+    <div class="left-top">
+      <div class="left-badge">🏥 Hospital Portal</div>
+      <h1>Manage Your<br><span>Hospital Live</span></h1>
+      <p>Access your real-time dashboard to update bed availability, ICU status, equipment, and OT schedules — so patients always find you first.</p>
+
+      <div class="feature-list">
+        <div class="feature-pill">
+          <div class="feature-pill-icon">🛏️</div>
+          <div class="feature-pill-text">
+            <h5>Live Bed Management</h5>
+            <p>Update general, ICU & NICU counts instantly</p>
+          </div>
+        </div>
+        <div class="feature-pill">
+          <div class="feature-pill-icon">📊</div>
+          <div class="feature-pill-text">
+            <h5>Resource Dashboard</h5>
+            <p>Ventilators, ambulances, OT rooms & more</p>
+          </div>
+        </div>
+        <div class="feature-pill">
+          <div class="feature-pill-icon">📞</div>
+          <div class="feature-pill-text">
+            <h5>Patient Inquiries</h5>
+            <p>Receive and manage patient contact requests</p>
+          </div>
+        </div>
+        <div class="feature-pill">
+          <div class="feature-pill-icon">📈</div>
+          <div class="feature-pill-text">
+            <h5>Analytics & Insights</h5>
+            <p>Track views, calls, and admissions from MedVyavastha</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="left-stats">
+      <div class="left-stat">
+        <div class="left-stat-num">2,400+</div>
+        <div class="left-stat-lbl">Hospitals</div>
+      </div>
+      <div class="left-stat">
+        <div class="left-stat-num">48</div>
+        <div class="left-stat-lbl">Cities</div>
+      </div>
+      <div class="left-stat">
+        <div class="left-stat-num">1.2M</div>
+        <div class="left-stat-lbl">Patients Helped</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right-panel">
+    <div class="login-card">
+
+      <!-- ════════════ LOGIN VIEW ════════════ -->
+      <div id="loginView">
+
+        <div class="login-card-header">
+          <h2>Hospital Sign In</h2>
+          <p>Access your hospital's live management dashboard.</p>
+        </div>
+
+        <!-- Tabs: Email vs Registration ID -->
+        <div class="login-tabs">
+          <button class="login-tab active" id="tabEmail" onclick="switchLoginTab('email')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Email Login
+          </button>
+          <button class="login-tab" id="tabRegId" onclick="switchLoginTab('regid')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+            Registration ID
+          </button>
+        </div>
+
+        <!-- Alert -->
+        <div class="alert-box alert-error" id="loginAlert">
+          <span class="alert-icon">⚠️</span>
+          <span id="loginAlertMsg">Invalid credentials. Please try again.</span>
+        </div>
+
+        <!-- Security note -->
+        <div class="security-note">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>256-bit SSL secured · Your data is protected</span>
+        </div>
+
+        <!-- EMAIL FORM -->
+        <div id="emailForm">
+          <div class="form-group">
+            <label class="form-label">
+              Registered Email Address
+              <span style="color:var(--red);font-size:0.78rem">*</span>
+            </label>
+            <div class="input-wrap">
+              <div class="input-icon">
+                <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <input type="email" class="form-input" id="loginEmail" placeholder="admin@yourhospital.com" oninput="clearErrors()">
+            </div>
+            <div class="field-error" id="emailErr">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Please enter a valid email address.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Password
+              <a href="#" onclick="showForgotPassword(); return false;">Forgot password?</a>
+            </label>
+            <div class="input-wrap">
+              <div class="input-icon">
+                <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <input type="password" class="form-input" id="loginPass" placeholder="Enter your password" oninput="clearErrors()">
+              <button class="pass-toggle" onclick="togglePass('loginPass', this)" type="button">
+                <svg id="eyeIcon1" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="field-error" id="passErr">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Password must be at least 6 characters.
+            </div>
+          </div>
+        </div>
+
+        <!-- REG ID FORM -->
+        <div id="regIdForm" style="display:none">
+          <div class="form-group">
+            <label class="form-label">
+              Hospital Registration ID
+              <span style="color:var(--red);font-size:0.78rem">*</span>
+            </label>
+            <div class="input-wrap">
+              <div class="input-icon">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              </div>
+              <input type="text" class="form-input" id="loginRegId" placeholder="e.g. MV-A3KX9P" oninput="formatRegId(this); clearErrors()" maxlength="9">
+            </div>
+            <div class="field-note">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Found in your registration confirmation email (format: MV-XXXXXX)
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              Admin Password
+              <a href="#" onclick="showForgotPassword(); return false;">Forgot password?</a>
+            </label>
+            <div class="input-wrap">
+              <div class="input-icon">
+                <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <input type="password" class="form-input" id="loginPassReg" placeholder="Enter your password" oninput="clearErrors()">
+              <button class="pass-toggle" onclick="togglePass('loginPassReg', this)" type="button">
+                <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="remember-row">
+          <label class="remember-check">
+            <input type="checkbox" id="rememberMe">
+            <label for="rememberMe">Keep me signed in</label>
+          </label>
+        </div>
+
+        <button class="submit-btn" id="loginBtn" onclick="handleLogin()">
+          <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Sign In to Dashboard
+        </button>
+
+        <div class="register-link">
+          New hospital? <a href="register.html">Register here →</a>
+        </div>
+
+        <div class="help-row">
+          <a class="help-chip" href="contact us.html">
+            <div class="help-chip-icon">💬</div>
+            <div class="help-chip-text">Contact Support</div>
+          </a>
+          <a class="help-chip" href="contact us.html">
+            <div class="help-chip-icon">📞</div>
+            <div class="help-chip-text">Call Helpdesk</div>
+          </a>
+          <a class="help-chip" href="college1_new.html#register">
+            <div class="help-chip-icon">🏥</div>
+            <div class="help-chip-text">Register Hospital</div>
+          </a>
+        </div>
+
+      </div><!-- end loginView -->
+
+      <!-- ════════════ FORGOT PASSWORD VIEW ════════════ -->
+      <div id="forgotView" class="forgot-panel">
+        <button class="back-link" onclick="showLoginView()">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to Sign In
+        </button>
+
+        <div class="login-card-header">
+          <h2>Reset Password</h2>
+          <p>Enter your registered email — we'll send you a reset link within 2 minutes.</p>
+        </div>
+
+        <div class="alert-box alert-success" id="resetSuccessAlert" style="display:none;">
+          <span class="alert-icon">✅</span>
+          <span>Reset link sent! Check your inbox (and spam folder).</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Registered Email Address</label>
+          <div class="input-wrap">
+            <div class="input-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <input type="email" class="form-input" id="resetEmail" placeholder="admin@yourhospital.com">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Hospital Registration ID <span style="color:var(--gray-400);font-weight:400">(optional, for faster verification)</span></label>
+          <div class="input-wrap">
+            <div class="input-icon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </div>
+            <input type="text" class="form-input" id="resetRegId" placeholder="MV-XXXXXX">
+          </div>
+        </div>
+
+        <button class="submit-btn" onclick="handleResetPassword()">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Send Reset Link
+        </button>
+
+        <div class="register-link" style="margin-top:16px;">
+          Remember it? <a href="#" onclick="showLoginView(); return false;">Back to sign in</a>
+        </div>
+      </div>
+
+      <!-- ════════════ SUCCESS VIEW ════════════ -->
+      <div id="successView" class="success-panel">
+        <div class="success-icon-wrap">🎉</div>
+        <h3>Welcome Back!</h3>
+        <p>You're signed in to your hospital dashboard. Redirecting you now…</p>
+        <div class="hospital-name-badge">
+          🏥 <span id="successHospitalName">City General Hospital</span>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div style="height:4px;background:var(--gray-100);border-radius:100px;overflow:hidden;">
+            <div id="progressBar" style="height:100%;background:linear-gradient(90deg,var(--blue-500),var(--cyan));border-radius:100px;width:0%;transition:width 0.05s linear;"></div>
+          </div>
+          <div style="font-size:0.75rem;color:var(--gray-400);margin-top:6px;text-align:center;">Loading your dashboard…</div>
+        </div>
+        <button class="btn-outline" onclick="resetToLogin()" style="width:100%;padding:11px;justify-content:center;">
+          ← Back to Sign In
+        </button>
+      </div>
+
+    </div><!-- end login-card -->
+  </div><!-- end right-panel -->
+
+</div><!-- end page-wrapper -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Demo credentials (for demo only) ──
+  const DEMO_HOSPITALS = [
+    { email: 'admin@aiims.com',   pass: 'password123', name: 'AIIMS Patna',            regId: 'MV-AIIMS1' },
+    { email: 'admin@ruban.com',   pass: 'password123', name: 'Ruban Memorial Hospital', regId: 'MV-RUBAN2' },
+    { email: 'demo@hospital.com', pass: 'demo1234',    name: 'Demo City Hospital',      regId: 'MV-DEMO00' },
+  ];
+
+  let activeTab = 'email'; // 'email' | 'regid'
+
+  // ── TAB SWITCH ──
+  function switchLoginTab(tab) {
+    activeTab = tab;
+    document.getElementById('tabEmail').classList.toggle('active', tab === 'email');
+    document.getElementById('tabRegId').classList.toggle('active', tab === 'regid');
+    document.getElementById('emailForm').style.display  = tab === 'email'  ? 'block' : 'none';
+    document.getElementById('regIdForm').style.display  = tab === 'regid'  ? 'block' : 'none';
+    clearErrors();
+  }
+
+  // ── FORMAT REG ID ──
+  function formatRegId(input) {
+    let val = input.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    if (val.length >= 2 && !val.startsWith('MV-')) {
+      val = 'MV-' + val.replace('MV-', '').replace('MV', '');
+    }
+    input.value = val;
+  }
+
+  // ── PASSWORD TOGGLE ──
+  function togglePass(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const isPass = input.type === 'password';
+    input.type = isPass ? 'text' : 'password';
+    btn.innerHTML = isPass
+      ? `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+      : `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  }
+
+  // ── CLEAR ERRORS ──
+  function clearErrors() {
+    document.getElementById('loginAlert').classList.remove('show');
+    document.querySelectorAll('.field-error').forEach(e => e.classList.remove('show'));
+    document.querySelectorAll('.form-input').forEach(i => i.classList.remove('error'));
+  }
+
+  // ── LOGIN HANDLER ──
+ async function handleLogin(e) {
+  if (e) e.preventDefault();
+  
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+
+  // 1. Basic Validation
+  if (!email || !pass) {
+    showToast('⚠️ Please enter both email and password.');
+    return;
+  }
+
+  try {
+    // 2. Start Loading UI
+    showToast('⏳ Verifying credentials...');
+    document.getElementById('progressBar').style.width = '50%';
+
+    // 3. FIREBASE SIGN IN
+    // This checks the Authentication tab for the user
+    const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+    const user = userCredential.user;
+
+    // 4. Update UI on Success
+    document.getElementById('progressBar').style.width = '100%';
+    showToast('✅ Login Successful! Redirecting...');
+
+    // 5. REDIRECT to the Hospital Dashboard
+    // Replace 'hospital-dashboard.html' with your actual dashboard file name
+    setTimeout(() => {
+      window.location.href = 'hospital-home.html'; 
+    }, 1500);
+
+  } catch (error) {
+    // 6. Handle Errors (Wrong password, user not found, etc.)
+    document.getElementById('progressBar').style.width = '0%';
+    console.error("Login Error:", error);
+    
+    if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      showToast('❌ Invalid email or password.');
+    } else {
+      showToast('❌ Error: ' + error.message);
+    }
+  }
+}
+
+  // ── SUCCESS ──
+  function showSuccess(hospitalName) {
+    document.getElementById('loginView').style.display    = 'none';
+    document.getElementById('forgotView').classList.remove('show');
+    document.getElementById('successHospitalName').textContent = hospitalName;
+    document.getElementById('successView').classList.add('show');
+
+    // Animate progress bar
+    let width = 0;
+    const bar = document.getElementById('progressBar');
+    const interval = setInterval(() => {
+      width += 1.2;
+      bar.style.width = Math.min(width, 100) + '%';
+      if (width >= 100) { clearInterval(interval); showToast('✅ Signed in as ' + hospitalName); }
+    }, 30);
+  }
+
+  // ── RESET TO LOGIN ──
+  function resetToLogin() {
+    document.getElementById('loginView').style.display = 'block';
+    document.getElementById('successView').classList.remove('show');
+    document.getElementById('progressBar').style.width = '0%';
+    clearErrors();
+  }
+
+  // ── FORGOT PASSWORD ──
+  function showForgotPassword() {
+    document.getElementById('loginView').style.display = 'none';
+    document.getElementById('forgotView').classList.add('show');
+  }
+  function showLoginView() {
+    document.getElementById('forgotView').classList.remove('show');
+    document.getElementById('loginView').style.display = 'block';
+    document.getElementById('resetSuccessAlert').style.display = 'none';
+  }
+  async function handleResetPassword() {
+  const email = document.getElementById('resetEmail').value.trim();
+  
+  if (!email || !email.includes('@')) { 
+    showToast('⚠️ Please enter a valid email address.'); 
+    return; 
+  }
+
+  try {
+    await auth.sendPasswordResetEmail(email);
+    
+    const alert = document.getElementById('resetSuccessAlert');
+    alert.style.display = 'flex';
+    alert.classList.add('show');
+    
+    showToast('📧 Reset link sent to ' + email);
+  } catch (error) {
+    showToast('❌ Error: ' + error.message);
+  }
+}
+
+  // ── TOAST ──
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (document.getElementById('forgotView').classList.contains('show')) handleResetPassword();
+      else if (document.getElementById('loginView').style.display !== 'none') handleLogin();
+    }
+  });
+</script>
+
+</body>
+</html>
